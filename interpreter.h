@@ -8,17 +8,7 @@
 #ifndef INTERPRETER_H_
 #define INTERPRETER_H_
 
-extern "C" {
-#ifdef WIN32
-#include <lua/lua.h>
-#include <lua/lauxlib.h>
-#include <lua/lualib.h>
-#else
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
-#endif
-}
+#include "lua.hpp"
 #include "common.h"
 #include <unordered_map>
 #include <list>
