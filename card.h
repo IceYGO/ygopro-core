@@ -183,6 +183,7 @@ public:
 	void remove_effect(effect* peffect);
 	void remove_effect(effect* peffect, effect_container::iterator it);
 	int32 copy_effect(uint32 code, uint32 reset, uint32 count);
+	int32 replace_effect(uint32 code, uint32 reset, uint32 count);
 	void reset(uint32 id, uint32 reset_type);
 	void reset_effect_count();
 	int32 refresh_disable_status();
@@ -285,7 +286,9 @@ public:
 #define POS_FACEDOWN			0xa
 #define POS_ATTACK				0x3
 #define POS_DEFENCE				0xc
+//Flip effect flags
 #define NO_FLIP_EFFECT			0x10000
+#define FLIP_SET_AVAILABLE		0x20000
 //Types
 #define TYPE_MONSTER		0x1			//
 #define TYPE_SPELL			0x2			//
@@ -388,7 +391,7 @@ public:
 #define STATUS_PROC_COMPLETE		0x0008	//
 #define STATUS_SET_TURN				0x0010	//
 #define STATUS_NO_LEVEL				0x0020	//
-#define STATUS_REVIVE_LIMIT			0x0040	//
+#define STATUS_SET_AVAILABLE		0x0040	//
 #define STATUS_SPSUMMON_STEP		0x0080	//
 #define STATUS_FORM_CHANGED			0x0100	//
 #define STATUS_SUMMONING			0x0200	//
@@ -401,7 +404,7 @@ public:
 #define STATUS_CHAINING				0x10000	//
 #define STATUS_SUMMON_DISABLED		0x20000	//
 #define STATUS_ACTIVATE_DISABLED	0x40000	//
-#define STATUS_UNSUMMONABLE_CARD	0x80000	//
+#define STATUS_EFFECT_REPLACED		0x80000
 #define STATUS_UNION				0x100000
 #define STATUS_ATTACK_CANCELED		0x200000
 #define STATUS_INITIALIZING			0x400000

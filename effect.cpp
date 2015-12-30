@@ -207,17 +207,15 @@ int32 effect::is_activateable(uint8 playerid, const tevent& e, int32 neglect_con
 			if(handler->is_affected_by_effect(EFFECT_CANNOT_TRIGGER))
 				return FALSE;
 		} else if(!(type & EFFECT_TYPE_CONTINUOUS)) {
-			if((type & EFFECT_TYPE_SINGLE) && code ==EVENT_FLIP){
-				// flip monster effects can be activated while face-down in LOCATION_MZONE
-				if((handler->current.location & LOCATION_REMOVED) && !handler->is_position(POS_FACEUP))
-					return FALSE;
-			}
-			else {
-				// effects with EFFECT_FLAG_SET_AVAILABLE can be activated while face-down
-				if((handler->current.location & (LOCATION_ONFIELD | LOCATION_REMOVED)) && !is_flag(EFFECT_FLAG_SET_AVAILABLE)
-						&& (!handler->is_position(POS_FACEUP) || !handler->is_status(STATUS_EFFECT_ENABLED)))
-					return FALSE;
-			}
+			if((handler->data.type & TYPE_MONSTER) && (handler->current.location & LOCATION_SZONE)
+					&& !in_range(handler->current.location, handler->current.sequence))
+				return FALSE;
+			// effects with EFFECT_FLAG_SET_AVAILABLE or cards with STATUS_SET_AVAILABLE can be activated while face-down
+			if((handler->current.location & (LOCATION_ONFIELD | LOCATION_REMOVED))
+					&& !is_flag(EFFECT_FLAG_SET_AVAILABLE) && !handler->is_status(STATUS_SET_AVAILABLE)
+					&& (code != EVENT_FLIP || !(e.event_value & (FLIP_SET_AVAILABLE >> 16)))
+					&& (!handler->is_position(POS_FACEUP) || !handler->is_status(STATUS_EFFECT_ENABLED)))
+				return FALSE;
 			if(!(type & (EFFECT_TYPE_FLIP | EFFECT_TYPE_TRIGGER_F)) 
 					&& !((type & EFFECT_TYPE_SINGLE) && (code == EVENT_TO_GRAVE || code == EVENT_DESTROYED || code == EVENT_SPSUMMON_SUCCESS || code == EVENT_TO_HAND))) {
 				if((code < 1132 || code > 1149) && pduel->game_field->infos.phase == PHASE_DAMAGE && !(is_flag(EFFECT_FLAG_DAMAGE_STEP)))
@@ -225,6 +223,8 @@ int32 effect::is_activateable(uint8 playerid, const tevent& e, int32 neglect_con
 				if((code < 1134 || code > 1136) && pduel->game_field->infos.phase == PHASE_DAMAGE_CAL && !(is_flag(EFFECT_FLAG_DAMAGE_CAL)))
 					return FALSE;
 			}
+			if(handler->current.location == LOCATION_OVERLAY)
+				return FALSE;
 			if((type & EFFECT_TYPE_FIELD) && (handler->current.controler != playerid) && !(is_flag(EFFECT_FLAG_BOTH_SIDE)))
 				return FALSE;
 			if(handler->is_affected_by_effect(EFFECT_FORBIDDEN))
