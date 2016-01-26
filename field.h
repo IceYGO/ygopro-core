@@ -291,7 +291,6 @@ struct processor {
 	uint32 hint_timing[2];
 	uint8 current_player;
 	uint8 conti_player;
-	int32 ctype;
 	std::unordered_map<uint32, std::pair<uint32, uint32> > summon_counter;
 	std::unordered_map<uint32, std::pair<uint32, uint32> > normalsummon_counter;
 	std::unordered_map<uint32, std::pair<uint32, uint32> > spsummon_counter;
@@ -813,7 +812,7 @@ public:
 #define MSG_ANNOUNCE_NUMBER		143
 #define MSG_CARD_HINT			160
 #define MSG_TAG_SWAP			161
-#define MSG_RELOAD_FIELD		162
+#define MSG_RELOAD_FIELD		162	// Debug.ReloadFieldEnd()
 #define MSG_AI_NAME				163
 #define MSG_SHOW_HINT			164
 #define MSG_MATCH_KILL			170
