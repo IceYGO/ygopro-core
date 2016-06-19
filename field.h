@@ -166,6 +166,7 @@ struct processor {
 	event_list point_event;
 	event_list instant_event;
 	event_list queue_event;
+	event_list full_event;
 	event_list used_event;
 	event_list single_event;
 	event_list solving_event;
@@ -198,7 +199,6 @@ struct processor {
 	card_set release_cards;
 	card_set release_cards_ex;
 	card_set release_cards_ex_sum;
-	card_set destroy_set;
 	card_set battle_destroy_rep;
 	card_set fusion_materials;
 	card_set synchro_materials;
@@ -240,15 +240,12 @@ struct processor {
 	uint8 summon_depth;
 	uint8 summon_cancelable;
 	card* attacker;
-	card* sub_attacker;
 	card* attack_target;
-	card* sub_attack_target;
 	card* limit_tuner;
 	group* limit_syn;
 	group* limit_xyz;
 	int32 limit_xyz_minc;
 	int32 limit_xyz_maxc;
-	uint8 attack_cancelable;
 	uint8 attack_rollback;
 	uint8 effect_damage_step;
 	int32 battle_damage[2];
@@ -265,7 +262,9 @@ struct processor {
 	uint8 to_ep;
 	uint8 skip_m2;
 	uint8 chain_attack;
+	uint32 chain_attacker_id;
 	card* chain_attack_target;
+	uint8 attack_player;
 	uint8 selfdes_disabled;
 	uint8 overdraw[2];
 	int32 check_level;
@@ -286,8 +285,8 @@ struct processor {
 	bool spsummon_rst;
 	uint8 attack_state_count[2];
 	uint8 battle_phase_count[2];
+	uint8 battled_count[2];
 	uint8 phase_action;
-	uint8 battle_phase_action;
 	uint32 hint_timing[2];
 	uint8 current_player;
 	uint8 conti_player;
@@ -297,6 +296,7 @@ struct processor {
 	std::unordered_map<uint32, std::pair<uint32, uint32> > flipsummon_counter;
 	std::unordered_map<uint32, std::pair<uint32, uint32> > attack_counter;
 	std::unordered_map<uint32, std::pair<uint32, uint32> > chain_counter;
+	processor_list recover_damage_reserve;
 };
 class field {
 public:
@@ -342,7 +342,6 @@ public:
 	void add_effect(effect* peffect, uint8 owner_player = 2);
 	void remove_effect(effect* peffect);
 	void remove_oath_effect(effect* reason_effect);
-	void reset_effect(uint32 id, uint32 reset_type);
 	void reset_phase(uint32 phase);
 	void reset_chain();
 	void add_effect_code(uint32 code, uint32 playerid);
@@ -372,7 +371,7 @@ public:
 	void adjust_self_destroy_set();
 	void add_unique_card(card* pcard);
 	void remove_unique_card(card* pcard);
-	effect* check_unique_onfield(card* pcard, uint8 controler);
+	effect* check_unique_onfield(card* pcard, uint8 controler, uint8 location);
 	int32 check_spsummon_once(card* pcard, uint8 playerid);
 	void check_card_counter(card* pcard, int32 counter_type, int32 playerid);
 	void check_chain_counter(effect* peffect, int32 playerid, int32 chainid, bool cancel = false);
@@ -386,12 +385,14 @@ public:
 
 	uint32 get_field_counter(uint8 self, uint8 s, uint8 o, uint16 countertype);
 	int32 effect_replace_check(uint32 code, const tevent& e);
-	int32 get_attack_target(card* pcard, card_vector* v, uint8 chain_attack = FALSE);
+	int32 get_attack_target(card* pcard, card_vector* v, uint8 chain_attack = FALSE, bool choose_target = true);
 	void attack_all_target_check();
 	int32 check_synchro_material(card* pcard, int32 findex1, int32 findex2, int32 min, int32 max, card* smat, group* mg);
 	int32 check_tuner_material(card* pcard, card* tuner, int32 findex1, int32 findex2, int32 min, int32 max, card* smat, group* mg);
 	static int32 check_with_sum_limit(const card_vector& mats, int32 acc, int32 index, int32 count, int32 min, int32 max);
 	static int32 check_with_sum_limit_m(const card_vector& mats, int32 acc, int32 index, int32 min, int32 max, int32 must_count);
+	static int32 check_with_sum_greater_limit(const card_vector& mats, int32 acc, int32 index, int32 opmin);
+	static int32 check_with_sum_greater_limit_m(const card_vector& mats, int32 acc, int32 index, int32 opmin, int32 must_count);
 	int32 check_xyz_material(card* pcard, int32 findex, int32 lv, int32 min, int32 max, group* mg);
 	
 	int32 is_player_can_draw(uint8 playerid);
@@ -438,7 +439,7 @@ public:
 	int32 process_single_event();
 	int32 process_idle_command(uint16 step);
 	int32 process_battle_command(uint16 step);
-	int32 process_damage_step(uint16 step);
+	int32 process_damage_step(uint16 step, uint32 new_attack);
 	void calculate_battle_damage(effect** pdamchange, card** preason_card, uint8* battle_destroyed);
 	int32 process_turn(uint16 step, uint8 turn_player);
 
@@ -462,12 +463,13 @@ public:
 	void change_target_param(uint8 chaincount, int32 param);
 	void remove_counter(uint32 reason, card* pcard, uint32 rplayer, uint32 s, uint32 o, uint32 countertype, uint32 count);
 	void remove_overlay_card(uint32 reason, card* pcard, uint32 rplayer, uint32 s, uint32 o, uint16 min, uint16 max);
-	void get_control(effect* reason_effect, uint32 reason_player, card* pcard, uint32 playerid, uint32 reset_phase, uint32 reset_count);
+	void get_control(card_set* targets, effect* reason_effect, uint32 reason_player, uint32 playerid, uint32 reset_phase, uint32 reset_count);
+	void get_control(card* target, effect* reason_effect, uint32 reason_player, uint32 playerid, uint32 reset_phase, uint32 reset_count);
 	void swap_control(effect* reason_effect, uint32 reason_player, card* pcard1, card* pcard2, uint32 reset_phase, uint32 reset_count);
 	void equip(uint32 equip_player, card* equip_card, card* target, uint32 up, uint32 is_step);
 	void draw(effect* reason_effect, uint32 reason, uint32 reason_player, uint32 playerid, uint32 count);
-	void damage(effect* reason_effect, uint32 reason, uint32 reason_player, card* pcard, uint32 playerid, uint32 amount);
-	void recover(effect* reason_effect, uint32 reason, uint32 reason_player, uint32 playerid, uint32 amount);
+	void damage(effect* reason_effect, uint32 reason, uint32 reason_player, card* reason_card, uint32 playerid, uint32 amount, uint32 is_step = FALSE);
+	void recover(effect* reason_effect, uint32 reason, uint32 reason_player, uint32 playerid, uint32 amount, uint32 is_step = FALSE);
 	void summon(uint32 sumplayer, card* target, effect* proc, uint32 ignore_count, uint32 min_tribute);
 	void special_summon_rule(uint32 sumplayer, card* target, uint32 summon_type);
 	void special_summon(card_set* target, uint32 sumtype, uint32 sumplayer, uint32 playerid, uint32 nocheck, uint32 nolimit, uint32 positions);
@@ -485,14 +487,14 @@ public:
 
 	int32 remove_counter(uint16 step, uint32 reason, card* pcard, uint8 rplayer, uint8 s, uint8 o, uint16 countertype, uint16 count);
 	int32 remove_overlay_card(uint16 step, uint32 reason, card* pcard, uint8 rplayer, uint8 s, uint8 o, uint16 min, uint16 max);
-	int32 get_control(uint16 step, effect* reason_effect, uint8 reason_player, card* pcard, uint8 playerid, uint16 reset_phase, uint8 reset_count);
+	int32 get_control(uint16 step, effect* reason_effect, uint8 reason_player, group* targets, uint8 playerid, uint16 reset_phase, uint8 reset_count);
 	int32 swap_control(uint16 step, effect* reason_effect, uint8 reason_player, card* pcard1, card* pcard2, uint16 reset_phase, uint8 reset_count);
 	int32 control_adjust(uint16 step);
 	int32 self_destroy(uint16 step);
 	int32 equip(uint16 step, uint8 equip_player, card* equip_card, card* target, uint32 up, uint32 is_step);
 	int32 draw(uint16 step, effect* reason_effect, uint32 reason, uint8 reason_player, uint8 playerid, uint32 count);
-	int32 damage(uint16 step, effect* reason_effect, uint32 reason, uint8 reason_player, card* pcard, uint8 playerid, uint32 amount);
-	int32 recover(uint16 step, effect* reason_effect, uint32 reason, uint8 reason_player, uint8 playerid, uint32 amount);
+	int32 damage(uint16 step, effect* reason_effect, uint32 reason, uint8 reason_player, card* reason_card, uint8 playerid, uint32 amount, uint32 is_step);
+	int32 recover(uint16 step, effect* reason_effect, uint32 reason, uint8 reason_player, uint8 playerid, uint32 amount, uint32 is_step);
 	int32 summon(uint16 step, uint8 sumplayer, card* target, effect* proc, uint8 ignore_count, uint8 min_tribute);
 	int32 flip_summon(uint16 step, uint8 sumplayer, card* target);
 	int32 mset(uint16 step, uint8 setplayer, card* ptarget, effect* proc, uint8 ignore_count, uint8 min_tribute);
@@ -590,7 +592,7 @@ public:
 #define GLOBALFLAG_DECK_REVERSE_CHECK	0x1
 #define GLOBALFLAG_BRAINWASHING_CHECK	0x2
 #define GLOBALFLAG_SCRAP_CHIMERA		0x4
-#define GLOBALFLAG_DELAYED_QUICKEFFECT	0x8
+//#define GLOBALFLAG_DELAYED_QUICKEFFECT	0x8
 #define GLOBALFLAG_DETACH_EVENT			0x10
 #define GLOBALFLAG_MUST_BE_SMATERIAL	0x20
 #define GLOBALFLAG_SPSUMMON_COUNT		0x40

@@ -30,7 +30,7 @@ struct card_data {
 	uint32 attribute;
 	uint32 race;
 	int32 attack;
-	int32 defence;
+	int32 defense;
 	uint32 lscale;
 	uint32 rscale;
 };
@@ -47,9 +47,9 @@ struct card_state {
 	uint32 attribute;
 	uint32 race;
 	int32 attack;
-	int32 defence;
+	int32 defense;
 	int32 base_attack;
-	int32 base_defence;
+	int32 base_defense;
 	uint8 controler;
 	uint8 location;
 	uint8 sequence;
@@ -69,9 +69,9 @@ struct query_cache {
 	uint32 attribute;
 	uint32 race;
 	int32 attack;
-	int32 defence;
+	int32 defense;
 	int32 base_attack;
-	int32 base_defence;
+	int32 base_defense;
 	uint32 reason;
 	int32 is_public;
 	int32 is_disabled;
@@ -93,10 +93,11 @@ public:
 	typedef std::unordered_set<std::pair<effect*, uint16>, effect_relation_hash> effect_relation;
 	typedef std::unordered_map<card*, uint32> relation_map;
 	typedef std::map<uint16, std::array<uint16, 2> > counter_map;
+	typedef std::map<uint32, int32> effect_count;
 	class attacker_map : public std::unordered_map<uint16, std::pair<card*, uint32> > {
 	public:
 		void addcard(card* pcard);
-	} ;
+	};
 	int32 scrtype;
 	int32 ref_handle;
 	duel* pduel;
@@ -121,6 +122,7 @@ public:
 	uint8 unique_pos[2];
 	uint16 unique_uid;
 	uint32 unique_code;
+	uint32 unique_location;
 	uint32 spsummon_code;
 	uint16 spsummon_counter[2];
 	uint16 spsummon_counter_rst[2];
@@ -132,6 +134,7 @@ public:
 	card* overlay_target;
 	relation_map relations;
 	counter_map counters;
+	effect_count indestructable_effects;
 	attacker_map announced_cards;
 	attacker_map attacked_cards;
 	attacker_map battled_cards;
@@ -159,11 +162,10 @@ public:
 	int32 is_pre_set_card(uint32 set_code);
 	int32 is_fusion_set_card(uint32 set_code);
 	uint32 get_type();
-	int32 get_base_attack(uint8 swap = FALSE);
+	int32 get_base_attack();
 	int32 get_attack();
-	int32 get_base_defence(uint8 swap = FALSE);
-	int32 get_defence();
-	void calc_attack_defence(int32 *patk, int32 *pdef);
+	int32 get_base_defense();
+	int32 get_defense();
 	uint32 get_level();
 	uint32 get_rank();
 	uint32 get_synchro_level(card* pcard);
@@ -186,7 +188,7 @@ public:
 	void xyz_remove(card* mat);
 	void apply_field_effect();
 	void cancel_field_effect();
-	void enable_field_effect(int32 enabled);
+	void enable_field_effect(bool enabled);
 	int32 add_effect(effect* peffect);
 	void remove_effect(effect* peffect);
 	void remove_effect(effect* peffect, effect_container::iterator it);
@@ -194,7 +196,7 @@ public:
 	int32 replace_effect(uint32 code, uint32 reset, uint32 count);
 	void reset(uint32 id, uint32 reset_type);
 	void reset_effect_count();
-	int32 refresh_disable_status();
+	void refresh_disable_status();
 	uint8 refresh_control_status();
 
 	void count_turn(uint16 ct);
@@ -210,9 +212,9 @@ public:
 	void release_relation(effect* peffect);
 	int32 leave_field_redirect(uint32 reason);
 	int32 destination_redirect(uint8 destination, uint32 reason);
-	int32 add_counter(uint8 playerid, uint16 countertype, uint16 count);
+	int32 add_counter(uint8 playerid, uint16 countertype, uint16 count, uint8 singly);
 	int32 remove_counter(uint16 countertype, uint16 count);
-	int32 is_can_add_counter(uint8 playerid, uint16 countertype, uint16 count);
+	int32 is_can_add_counter(uint8 playerid, uint16 countertype, uint16 count, uint8 singly);
 	int32 get_counter(uint16 countertype);
 	void set_material(card_set* materials);
 	void add_card_target(card* pcard);
@@ -232,6 +234,7 @@ public:
 	effect* check_control_effect();
 	int32 fusion_check(group* fusion_m, card* cg, int32 chkf);
 	void fusion_select(uint8 playerid, group* fusion_m, card* cg, int32 chkf);
+	int32 check_fusion_substitute(card* fcard);
 	
 	int32 is_equipable(card* pcard);
 	int32 is_summonable();
@@ -292,12 +295,12 @@ public:
 //Positions
 #define POS_FACEUP_ATTACK		0x1
 #define POS_FACEDOWN_ATTACK		0x2
-#define POS_FACEUP_DEFENCE		0x4
-#define POS_FACEDOWN_DEFENCE	0x8
+#define POS_FACEUP_DEFENSE		0x4
+#define POS_FACEDOWN_DEFENSE	0x8
 #define POS_FACEUP				0x5
 #define POS_FACEDOWN			0xa
 #define POS_ATTACK				0x3
-#define POS_DEFENCE				0xc
+#define POS_DEFENSE				0xc
 //Flip effect flags
 #define NO_FLIP_EFFECT			0x10000
 #define FLIP_SET_AVAILABLE		0x20000
@@ -403,7 +406,7 @@ public:
 #define STATUS_PROC_COMPLETE		0x0008	//
 #define STATUS_SET_TURN				0x0010	//
 #define STATUS_NO_LEVEL				0x0020	//
-#define STATUS_SET_AVAILABLE		0x0040	//
+#define STATUS_BATTLE_RESULT		0x0040	//
 #define STATUS_SPSUMMON_STEP		0x0080	//
 #define STATUS_FORM_CHANGED			0x0100	//
 #define STATUS_SUMMONING			0x0200	//
@@ -423,13 +426,13 @@ public:
 #define STATUS_ACTIVATED			0x800000
 #define STATUS_JUST_POS				0x1000000
 #define STATUS_CONTINUOUS_POS		0x2000000
-//#define STATUS_IS_PUBLIC			0x4000000
+#define STATUS_FORBIDDEN			0x4000000
 #define STATUS_ACT_FROM_HAND		0x8000000
 #define STATUS_OPPO_BATTLE			0x10000000
 #define STATUS_FLIP_SUMMON_TURN		0x20000000
 #define STATUS_SPSUMMON_TURN		0x40000000
 //Counter
-#define COUNTER_NEED_PERMIT		0x1000
+#define COUNTER_WITHOUT_PERMIT	0x1000
 #define COUNTER_NEED_ENABLE		0x2000
 //Query list
 #define QUERY_CODE			0x1
@@ -441,9 +444,9 @@ public:
 #define QUERY_ATTRIBUTE		0x40
 #define QUERY_RACE			0x80
 #define QUERY_ATTACK		0x100
-#define QUERY_DEFENCE		0x200
+#define QUERY_DEFENSE		0x200
 #define QUERY_BASE_ATTACK	0x400
-#define QUERY_BASE_DEFENCE	0x800
+#define QUERY_BASE_DEFENSE	0x800
 #define QUERY_REASON		0x1000
 #define QUERY_REASON_CARD	0x2000
 #define QUERY_EQUIP_CARD	0x4000
@@ -463,5 +466,5 @@ public:
 #define ASSUME_ATTRIBUTE	5
 #define ASSUME_RACE			6
 #define ASSUME_ATTACK		7
-#define ASSUME_DEFENCE		8
+#define ASSUME_DEFENSE		8
 #endif /* CARD_H_ */

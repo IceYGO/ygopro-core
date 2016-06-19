@@ -330,24 +330,47 @@ int32 field::select_place(uint16 step, uint8 playerid, uint32 flag, uint8 count)
 		if(count == 0)
 			return TRUE;
 		if((playerid == 1) && (core.duel_options & DUEL_SIMPLE_AI)) {
-			returns.bvalue[0] = 1;
 			flag = ~flag;
+			int32 filter;
+			int32 pzone = 0;
 			if(flag & 0x1f) {
+				returns.bvalue[0] = 1;
 				returns.bvalue[1] = LOCATION_MZONE;
-				if(flag & 0x4) returns.bvalue[2] = 2;
-				else if(flag & 0x2) returns.bvalue[2] = 1;
-				else if(flag & 0x8) returns.bvalue[2] = 3;
-				else if(flag & 0x1) returns.bvalue[2] = 0;
-				else returns.bvalue[2] = 4;
-			} else {
+				filter = flag & 0x1f;
+			} else if(flag & 0x1f00) {
+				returns.bvalue[0] = 1;
 				returns.bvalue[1] = LOCATION_SZONE;
-				if(flag & 0x400) returns.bvalue[2] = 2;
-				else if(flag & 0x200) returns.bvalue[2] = 1;
-				else if(flag & 0x800) returns.bvalue[2] = 3;
-				else if(flag & 0x100) returns.bvalue[2] = 0;
-				else returns.bvalue[2] = 4;
+				filter = (flag >> 8) & 0x1f;
+			} else if(flag & 0xc000) {
+				returns.bvalue[0] = 1;
+				returns.bvalue[1] = LOCATION_SZONE;
+				filter = (flag >> 14) & 0x3;
+				pzone = 1;
+			} else if(flag & 0x1f0000) {
+				returns.bvalue[0] = 0;
+				returns.bvalue[1] = LOCATION_MZONE;
+				filter = (flag >> 16) & 0x1f;
+			} else if(flag & 0x1f000000) {
+				returns.bvalue[0] = 0;
+				returns.bvalue[1] = LOCATION_SZONE;
+				filter = (flag >> 24) & 0x1f;
+			} else {
+				returns.bvalue[0] = 0;
+				returns.bvalue[1] = LOCATION_SZONE;
+				filter = (flag >> 30) & 0x3;
+				pzone = 1;
 			}
-			return true;
+			if(!pzone) {
+				if(filter & 0x4) returns.bvalue[2] = 2;
+				else if(filter & 0x2) returns.bvalue[2] = 1;
+				else if(filter & 0x8) returns.bvalue[2] = 3;
+				else if(filter & 0x1) returns.bvalue[2] = 0;
+				else if(filter & 0x10) returns.bvalue[2] = 4;
+			} else {
+				if(filter & 0x1) returns.bvalue[2] = 6;
+				else if(filter & 0x2) returns.bvalue[2] = 7;
+			}
+			return TRUE;
 		}
 		if(core.units.begin()->type == PROCESSOR_SELECT_PLACE)
 			pduel->write_buffer8(MSG_SELECT_PLACE);
@@ -586,23 +609,34 @@ int32 field::select_with_sum_limit(int16 step, uint8 playerid, int32 acc, int32 
 			}
 			return TRUE;
 		} else {
-			uint8 m = core.select_cards.size(), v = 0;
-			int32 op, o1, o2, sum = 0, mx = 0, mn = 0x7fffffff;
-			int16 ms[16];
-			for(int32 i = 0; i < returns.bvalue[0]; ++i) {
-				v = returns.bvalue[i + 1];
+			int32 mcount = core.must_select_cards.size();
+			int32 sum = 0, mx = 0, mn = 0x7fffffff;
+			for(int32 i = 0; i < mcount; ++i) {
+				int32 op = core.must_select_cards[i]->operation_param;
+				int32 o1 = op & 0xffff;
+				int32 o2 = op >> 16;
+				int32 ms = (o2 && o2 < o1) ? o2 : o1;
+				sum += ms;
+				mx += (o2 > o1) ? o2 : o1;
+				if(ms < mn)
+					mn = ms;
+			}
+			int32 m = core.select_cards.size();
+			for(int32 i = mcount; i < returns.bvalue[0]; ++i) {
+				int32 v = returns.bvalue[i + 1];
 				if(v < 0 || v >= m || c[v]) {
 					pduel->write_buffer8(MSG_RETRY);
 					return FALSE;
 				}
 				c[v] = 1;
-				op = core.select_cards[v]->operation_param;
-				o1 = op & 0xffff;
-				o2 = op >> 16;
-				sum += ms[i] = (o2 && o2 < o1) ? o2 : o1;
+				int32 op = core.select_cards[v]->operation_param;
+				int32 o1 = op & 0xffff;
+				int32 o2 = op >> 16;
+				int32 ms = (o2 && o2 < o1) ? o2 : o1;
+				sum += ms;
 				mx += (o2 > o1) ? o2 : o1;
-				if(ms[i] < mn)
-					mn = ms[i];
+				if(ms < mn)
+					mn = ms;
 			}
 			if(mx < acc || sum - mn >= acc) {
 				pduel->write_buffer8(MSG_RETRY);

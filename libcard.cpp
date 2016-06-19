@@ -89,6 +89,9 @@ int32 scriptlib::card_is_fusion_code(lua_State *L) {
 	uint32 code1 = pcard->get_code();
 	uint32 code2 = pcard->get_another_code();
 	std::unordered_set<uint32> fcode;
+	fcode.insert(code1);
+	if(code2)
+		fcode.insert(code2);
 	for(int32 i = 0; i < eset.size(); ++i)
 		fcode.insert(eset[i]->get_value(pcard));
 	uint32 count = lua_gettop(L) - 1;
@@ -97,7 +100,7 @@ int32 scriptlib::card_is_fusion_code(lua_State *L) {
 		if(lua_isnil(L, i + 2))
 			continue;
 		uint32 tcode = lua_tointeger(L, i + 2);
-		if(code1 == tcode || (code2 && code2 == tcode) || fcode.find(tcode) != fcode.end()) {
+		if(fcode.find(tcode) != fcode.end()) {
 			result = TRUE;
 			break;
 		}
@@ -289,28 +292,28 @@ int32 scriptlib::card_get_text_attack(lua_State *L) {
 		lua_pushinteger(L, pcard->data.attack);
 	return 1;
 }
-int32 scriptlib::card_get_defence(lua_State *L) {
+int32 scriptlib::card_get_defense(lua_State *L) {
 	check_param_count(L, 1);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
-	lua_pushinteger(L, pcard->get_defence());
+	lua_pushinteger(L, pcard->get_defense());
 	return 1;
 }
-int32 scriptlib::card_get_origin_defence(lua_State *L) {
+int32 scriptlib::card_get_origin_defense(lua_State *L) {
 	check_param_count(L, 1);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
-	lua_pushinteger(L, pcard->get_base_defence());
+	lua_pushinteger(L, pcard->get_base_defense());
 	return 1;
 }
-int32 scriptlib::card_get_text_defence(lua_State *L) {
+int32 scriptlib::card_get_text_defense(lua_State *L) {
 	check_param_count(L, 1);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
 	if(pcard->status & STATUS_NO_LEVEL)
 		lua_pushinteger(L, 0);
 	else
-		lua_pushinteger(L, pcard->data.defence);
+		lua_pushinteger(L, pcard->data.defense);
 	return 1;
 }
 int32 scriptlib:: card_get_previous_code_onfield(lua_State *L) {
@@ -366,11 +369,11 @@ int32 scriptlib::card_get_previous_attack_onfield(lua_State *L) {
 	lua_pushinteger(L, pcard->previous.attack);
 	return 1;
 }
-int32 scriptlib::card_get_previous_defence_onfield(lua_State *L) {
+int32 scriptlib::card_get_previous_defense_onfield(lua_State *L) {
 	check_param_count(L, 1);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
-	lua_pushinteger(L, pcard->previous.defence);
+	lua_pushinteger(L, pcard->previous.defense);
 	return 1;
 }
 int32 scriptlib::card_get_owner(lua_State *L) {
@@ -1066,7 +1069,7 @@ int32 scriptlib::card_set_flag_effect_label(lua_State *L) {
 	check_param_count(L, 3);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
-	int32 code = (lua_tointeger(L, 2) & 0xfffffff) | 0x10000000;
+	uint32 code = (lua_tounsigned(L, 2) & 0xfffffff) | 0x10000000;
 	int lab = lua_tointeger(L, 3);
 	auto eit = pcard->single_effect.find(code);
 	if(eit == pcard->single_effect.end())
@@ -1081,13 +1084,18 @@ int32 scriptlib::card_get_flag_effect_label(lua_State *L) {
 	check_param_count(L, 2);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
-	int32 code = (lua_tointeger(L, 2) & 0xfffffff) | 0x10000000;
-	auto eit = pcard->single_effect.find(code);
-	if(eit == pcard->single_effect.end())
+	uint32 code = (lua_tounsigned(L, 2) & 0xfffffff) | 0x10000000;
+	auto rg = pcard->single_effect.equal_range(code);
+	int32 count = 0;
+	for(; rg.first != rg.second; ++rg.first) {
+		lua_pushinteger(L, rg.first->second->label);
+		count++;
+	}
+	if(!count) {
 		lua_pushnil(L);
-	else
-		lua_pushinteger(L, eit->second->label);
-	return 1;
+		return 1;
+	}
+	return count;
 }
 int32 scriptlib::card_create_relation(lua_State *L) {
 	check_param_count(L, 3);
@@ -1625,11 +1633,11 @@ int32 scriptlib::card_is_facedown(lua_State *L) {
 	lua_pushboolean(L, pcard->is_position(POS_FACEDOWN));
 	return 1;
 }
-int32 scriptlib::card_is_defence_pos(lua_State *L) {
+int32 scriptlib::card_is_defense_pos(lua_State *L) {
 	check_param_count(L, 1);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
-	lua_pushboolean(L, pcard->is_position(POS_DEFENCE));
+	lua_pushboolean(L, pcard->is_position(POS_DEFENSE));
 	return 1;
 }
 int32 scriptlib::card_is_position(lua_State *L) {
@@ -1765,7 +1773,7 @@ int32 scriptlib::card_is_attack_above(lua_State *L) {
 	}
 	return 1;
 }
-int32 scriptlib::card_is_defence_below(lua_State *L) {
+int32 scriptlib::card_is_defense_below(lua_State *L) {
 	check_param_count(L, 2);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
@@ -1773,12 +1781,12 @@ int32 scriptlib::card_is_defence_below(lua_State *L) {
 	if(!(pcard->data.type & TYPE_MONSTER) && !(pcard->get_type() & TYPE_MONSTER) && !(pcard->current.location & LOCATION_MZONE))
 		lua_pushboolean(L, 0);
 	else {
-		int _def = pcard->get_defence();
+		int _def = pcard->get_defense();
 		lua_pushboolean(L, _def >= 0 && _def <= def);
 	}
 	return 1;
 }
-int32 scriptlib::card_is_defence_above(lua_State *L) {
+int32 scriptlib::card_is_defense_above(lua_State *L) {
 	check_param_count(L, 2);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
@@ -1786,7 +1794,7 @@ int32 scriptlib::card_is_defence_above(lua_State *L) {
 	if(!(pcard->data.type & TYPE_MONSTER) && !(pcard->get_type() & TYPE_MONSTER) && !(pcard->current.location & LOCATION_MZONE))
 		lua_pushboolean(L, 0);
 	else {
-		int _def = pcard->get_defence();
+		int _def = pcard->get_defense();
 		lua_pushboolean(L, _def >= def);
 	}
 	return 1;
@@ -1805,10 +1813,7 @@ int32 scriptlib::card_is_forbidden(lua_State *L) {
 	check_param_count(L, 1);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
-	if(pcard->is_affected_by_effect(EFFECT_FORBIDDEN))
-		lua_pushboolean(L, 1);
-	else
-		lua_pushboolean(L, 0);
+	lua_pushboolean(L, pcard->is_status(STATUS_FORBIDDEN));
 	return 1;
 }
 int32 scriptlib::card_is_able_to_change_controler(lua_State *L) {
@@ -1837,8 +1842,11 @@ int32 scriptlib::card_add_counter(lua_State *L) {
 	card* pcard = *(card**) lua_touserdata(L, 1);
 	uint32 countertype = lua_tointeger(L, 2);
 	uint32 count = lua_tointeger(L, 3);
+	uint8 singly = FALSE;
+	if(lua_gettop(L) > 3)
+		singly = lua_toboolean(L, 4);
 	if(pcard->is_affect_by_effect(pcard->pduel->game_field->core.reason_effect))
-		lua_pushboolean(L, pcard->add_counter(pcard->pduel->game_field->core.reason_player, countertype, count));
+		lua_pushboolean(L, pcard->add_counter(pcard->pduel->game_field->core.reason_player, countertype, count, singly));
 	else lua_pushboolean(L, 0);
 	return 1;
 }
@@ -1852,6 +1860,7 @@ int32 scriptlib::card_remove_counter(lua_State *L) {
 	uint32 count = lua_tointeger(L, 4);
 	uint32 reason = lua_tointeger(L, 5);
 	if(countertype == 0) {
+		// c38834303
 		for(auto cmit = pcard->counters.begin(); cmit != pcard->counters.end(); ++cmit) {
 			pcard->pduel->write_buffer8(MSG_REMOVE_COUNTER);
 			pcard->pduel->write_buffer16(cmit->first);
@@ -1924,7 +1933,10 @@ int32 scriptlib::card_is_can_add_counter(lua_State *L) {
 	card* pcard = *(card**) lua_touserdata(L, 1);
 	uint32 countertype = lua_tointeger(L, 2);
 	uint32 count = lua_tointeger(L, 3);
-	lua_pushboolean(L, pcard->is_can_add_counter(pcard->pduel->game_field->core.reason_player, countertype, count));
+	uint8 singly = FALSE;
+	if(lua_gettop(L) > 3)
+		singly = lua_toboolean(L, 4);
+	lua_pushboolean(L, pcard->is_can_add_counter(pcard->pduel->game_field->core.reason_player, countertype, count, singly));
 	return 1;
 }
 int32 scriptlib::card_is_can_remove_counter(lua_State *L) {
@@ -2016,6 +2028,15 @@ int32 scriptlib::card_check_fusion_material(lua_State *L) {
 	lua_pushboolean(L, pcard->fusion_check(pgroup, cg, chkf));
 	return 1;
 }
+int32 scriptlib::card_check_fusion_substitute(lua_State *L) {
+	check_param_count(L, 2);
+	check_param(L, PARAM_TYPE_CARD, 1);
+	check_param(L, PARAM_TYPE_CARD, 2);
+	card* pcard = *(card**) lua_touserdata(L, 1);
+	card* fcard = *(card**) lua_touserdata(L, 2);
+	lua_pushboolean(L, pcard->check_fusion_substitute(fcard));
+	return 1;
+}
 int32 scriptlib::card_is_immune_to_effect(lua_State *L) {
 	check_param_count(L, 2);
 	check_param(L, PARAM_TYPE_CARD, 1);
@@ -2047,87 +2068,105 @@ int32 scriptlib::card_is_can_be_battle_target(lua_State *L) {
 	lua_pushboolean(L, pcard->is_capable_be_battle_target(bcard));
 	return 1;
 }
-int32 scriptlib::card_add_trap_monster_attribute(lua_State *L) {
-	check_param_count(L, 7);
+int32 scriptlib::card_add_monster_attribute(lua_State *L) {
+	check_param_count(L, 6);
 	check_param(L, PARAM_TYPE_CARD, 1);
-	int32 extra_type = lua_tointeger(L, 2);
-	int32 attribute = lua_tointeger(L, 3);
-	int32 race = lua_tointeger(L, 4);
-	int32 level = lua_tointeger(L, 5);
-	int32 atk = lua_tointeger(L, 6);
-	int32 def = lua_tointeger(L, 7);
+	int32 attribute = lua_tointeger(L, 2);
+	int32 race = lua_tointeger(L, 3);
+	int32 level = lua_tointeger(L, 4);
+	int32 atk = lua_tointeger(L, 5);
+	int32 def = lua_tointeger(L, 6);
 	card* pcard = *(card**) lua_touserdata(L, 1);
 	duel* pduel = pcard->pduel;
-	//type
+	pcard->set_status(STATUS_NO_LEVEL, FALSE);
+	// pre-monster
+	effect* peffect = pduel->new_effect();
+	peffect->owner = pcard;
+	peffect->type = EFFECT_TYPE_SINGLE;
+	peffect->code = EFFECT_PRE_MONSTER;
+	peffect->flag[0] = EFFECT_FLAG_CANNOT_DISABLE;
+	peffect->reset_flag = RESET_CHAIN + RESET_EVENT + 0x1fe0000;
+	pcard->add_effect(peffect);
+	//attribute
+	if(attribute) {
+		peffect = pduel->new_effect();
+		peffect->owner = pcard;
+		peffect->type = EFFECT_TYPE_SINGLE;
+		peffect->code = EFFECT_ADD_ATTRIBUTE;
+		peffect->flag[0] = EFFECT_FLAG_CANNOT_DISABLE;
+		peffect->reset_flag = RESET_EVENT + 0x47e0000;
+		peffect->value = attribute;
+		pcard->add_effect(peffect);
+	}
+	//race
+	if(race) {
+		peffect = pduel->new_effect();
+		peffect->owner = pcard;
+		peffect->type = EFFECT_TYPE_SINGLE;
+		peffect->code = EFFECT_ADD_RACE;
+		peffect->flag[0] = EFFECT_FLAG_CANNOT_DISABLE;
+		peffect->reset_flag = RESET_EVENT + 0x47e0000;
+		peffect->value = race;
+		pcard->add_effect(peffect);
+	}
+	//level
+	if(level) {
+		peffect = pduel->new_effect();
+		peffect->owner = pcard;
+		peffect->type = EFFECT_TYPE_SINGLE;
+		peffect->code = EFFECT_CHANGE_LEVEL;
+		peffect->flag[0] = EFFECT_FLAG_CANNOT_DISABLE;
+		peffect->reset_flag = RESET_EVENT + 0x47e0000;
+		peffect->value = level;
+		pcard->add_effect(peffect);
+	}
+	//atk
+	if(atk) {
+		peffect = pduel->new_effect();
+		peffect->owner = pcard;
+		peffect->type = EFFECT_TYPE_SINGLE;
+		peffect->code = EFFECT_SET_BASE_ATTACK;
+		peffect->flag[0] = EFFECT_FLAG_CANNOT_DISABLE;
+		peffect->reset_flag = RESET_EVENT + 0x47e0000;
+		peffect->value = atk;
+		pcard->add_effect(peffect);
+	}
+	//def
+	if(def) {
+		peffect = pduel->new_effect();
+		peffect->owner = pcard;
+		peffect->type = EFFECT_TYPE_SINGLE;
+		peffect->code = EFFECT_SET_BASE_DEFENSE;
+		peffect->flag[0] = EFFECT_FLAG_CANNOT_DISABLE;
+		peffect->reset_flag = RESET_EVENT + 0x47e0000;
+		peffect->value = def;
+		pcard->add_effect(peffect);
+	}
+	return 0;
+}
+int32 scriptlib::card_trap_monster_complete(lua_State *L) {
+	check_param_count(L, 2);
+	check_param(L, PARAM_TYPE_CARD, 1);
+	card* pcard = *(card**) lua_touserdata(L, 1);
+	int32 extra_type = lua_tointeger(L, 2);
+	duel* pduel = pcard->pduel;
+	// add type
 	effect* peffect = pduel->new_effect();
 	peffect->owner = pcard;
 	peffect->type = EFFECT_TYPE_SINGLE;
 	peffect->code = EFFECT_ADD_TYPE;
 	peffect->flag[0] = EFFECT_FLAG_CANNOT_DISABLE;
-	peffect->reset_flag = RESET_EVENT + 0x47e0000;
+	peffect->reset_flag = RESET_EVENT + 0x1fe0000;
 	peffect->value = TYPE_MONSTER | TYPE_TRAPMONSTER | extra_type;
 	pcard->add_effect(peffect);
-	//attribute
+	// extra block
 	peffect = pduel->new_effect();
-	peffect->owner = pcard;
-	peffect->type = EFFECT_TYPE_SINGLE;
-	peffect->code = EFFECT_ADD_ATTRIBUTE;
-	peffect->flag[0] = EFFECT_FLAG_CANNOT_DISABLE;
-	peffect->reset_flag = RESET_EVENT + 0x47e0000;
-	peffect->value = attribute;
-	pcard->add_effect(peffect);
-	//race
-	peffect = pduel->new_effect();
-	peffect->owner = pcard;
-	peffect->type = EFFECT_TYPE_SINGLE;
-	peffect->code = EFFECT_ADD_RACE;
-	peffect->flag[0] = EFFECT_FLAG_CANNOT_DISABLE;
-	peffect->reset_flag = RESET_EVENT + 0x47e0000;
-	peffect->value = race;
-	pcard->add_effect(peffect);
-	//level
-	peffect = pduel->new_effect();
-	peffect->owner = pcard;
-	peffect->type = EFFECT_TYPE_SINGLE;
-	peffect->code = EFFECT_CHANGE_LEVEL;
-	peffect->flag[0] = EFFECT_FLAG_CANNOT_DISABLE;
-	peffect->reset_flag = RESET_EVENT + 0x47e0000;
-	peffect->value = level;
-	pcard->add_effect(peffect);
-	//atk
-	peffect = pduel->new_effect();
-	peffect->owner = pcard;
-	peffect->type = EFFECT_TYPE_SINGLE;
-	peffect->code = EFFECT_SET_BASE_ATTACK;
-	peffect->flag[0] = EFFECT_FLAG_CANNOT_DISABLE;
-	peffect->reset_flag = RESET_EVENT + 0x47e0000;
-	peffect->value = atk;
-	pcard->add_effect(peffect);
-	//def
-	peffect = pduel->new_effect();
-	peffect->owner = pcard;
-	peffect->type = EFFECT_TYPE_SINGLE;
-	peffect->code = EFFECT_SET_BASE_DEFENCE;
-	peffect->flag[0] = EFFECT_FLAG_CANNOT_DISABLE;
-	peffect->reset_flag = RESET_EVENT + 0x47e0000;
-	peffect->value = def;
-	pcard->add_effect(peffect);
-	pcard->set_status(STATUS_NO_LEVEL, FALSE);
-	return 0;
-}
-int32 scriptlib::card_trap_monster_block(lua_State *L) {
-	check_param_count(L, 1);
-	check_param(L, PARAM_TYPE_CARD, 1);
-	card* pcard = *(card**) lua_touserdata(L, 1);
-	duel* pduel = pcard->pduel;
-	//extra block
-	effect* peffect = pduel->new_effect();
 	peffect->owner = pcard;
 	peffect->type = EFFECT_TYPE_FIELD;
 	peffect->range = LOCATION_MZONE;
 	peffect->code = EFFECT_USE_EXTRA_SZONE;
 	peffect->flag[0] = EFFECT_FLAG_CANNOT_DISABLE;
-	peffect->reset_flag = RESET_EVENT + 0x5fe0000;
+	peffect->reset_flag = RESET_EVENT + 0x1fe0000;
 	peffect->value = 1 + (0x10000 << pcard->previous.sequence);
 	pcard->add_effect(peffect);
 	return 0;
@@ -2202,7 +2241,7 @@ int32 scriptlib::card_reverse_in_deck(lua_State *L) {
 	card* pcard = *(card**) lua_touserdata(L, 1);
 	if(pcard->current.location != LOCATION_DECK)
 		return 0;
-	pcard->current.position = POS_FACEUP_DEFENCE;
+	pcard->current.position = POS_FACEUP_DEFENSE;
 	duel* pduel = pcard->pduel;
 	if(pcard->current.sequence == pduel->game_field->player[pcard->current.controler].list_main.size() - 1) {
 		pduel->write_buffer8(MSG_DECK_TOP);
@@ -2219,6 +2258,10 @@ int32 scriptlib::card_set_unique_onfield(lua_State *L) {
 	pcard->unique_pos[0] = lua_tointeger(L, 2);
 	pcard->unique_pos[1] = lua_tointeger(L, 3);
 	pcard->unique_code = lua_tointeger(L, 4);
+	uint32 location = LOCATION_ONFIELD;
+	if(lua_gettop(L) > 4)
+		location = lua_tointeger(L, 5) & LOCATION_ONFIELD;
+	pcard->unique_location = location;
 	effect* peffect = pcard->pduel->new_effect();
 	peffect->owner = pcard;
 	peffect->type = EFFECT_TYPE_SINGLE;
@@ -2226,7 +2269,7 @@ int32 scriptlib::card_set_unique_onfield(lua_State *L) {
 	peffect->flag[0] = EFFECT_FLAG_COPY_INHERIT;
 	pcard->add_effect(peffect);
 	pcard->unique_effect = peffect;
-	if(pcard->current.location & LOCATION_ONFIELD)
+	if(pcard->current.location & location)
 		pcard->pduel->game_field->add_unique_card(pcard);
 	return 0;
 }
@@ -2235,7 +2278,10 @@ int32 scriptlib::card_check_unique_onfield(lua_State *L) {
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
 	uint32 check_player = lua_tointeger(L, 2);
-	lua_pushboolean(L, pcard->pduel->game_field->check_unique_onfield(pcard, check_player) ? 0 : 1);
+	uint32 check_location = LOCATION_ONFIELD;
+	if(lua_gettop(L) > 2)
+		check_location = lua_tointeger(L, 3) & LOCATION_ONFIELD;
+	lua_pushboolean(L, pcard->pduel->game_field->check_unique_onfield(pcard, check_player, check_location) ? 0 : 1);
 	return 1;
 }
 int32 scriptlib::card_reset_negate_effect(lua_State *L) {

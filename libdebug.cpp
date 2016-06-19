@@ -43,7 +43,7 @@ int32 scriptlib::debug_add_card(lua_State *L) {
 		pduel->game_field->add_card(playerid, pcard, location, sequence);
 		pcard->current.position = position;
 		if(!(location & LOCATION_ONFIELD) || (position & POS_FACEUP)) {
-			pcard->enable_field_effect(TRUE);
+			pcard->enable_field_effect(true);
 			pduel->game_field->adjust_instant();
 		}
 		if(proc)
@@ -76,6 +76,17 @@ int32 scriptlib::debug_set_player_info(lua_State *L) {
 	pduel->game_field->player[playerid].lp = lp;
 	pduel->game_field->player[playerid].start_count = startcount;
 	pduel->game_field->player[playerid].draw_count = drawcount;
+	return 0;
+}
+int32 scriptlib::debug_pre_summon(lua_State *L) {
+	check_param_count(L, 2);
+	check_param(L, PARAM_TYPE_CARD, 1);
+	card* pcard = *(card**) lua_touserdata(L, 1);
+	uint32 summon_type = lua_tointeger(L, 2);
+	uint8 summon_location = 0;
+	if(lua_gettop(L) > 2)
+		summon_location = lua_tointeger(L, 3);
+	pcard->summon_info = summon_type | (summon_location << 16);
 	return 0;
 }
 int32 scriptlib::debug_pre_equip(lua_State *L) {
@@ -111,16 +122,14 @@ int32 scriptlib::debug_pre_add_counter(lua_State *L) {
 	card* pcard = *(card**) lua_touserdata(L, 1);
 	uint32 countertype = lua_tointeger(L, 2);
 	uint32 count = lua_tointeger(L, 3);
-	uint16 cttype = countertype;
-	if((countertype & COUNTER_NEED_ENABLE) && !(countertype & COUNTER_NEED_PERMIT))
-		cttype &= 0xfff;
+	uint16 cttype = countertype & ~COUNTER_NEED_ENABLE;
 	auto pr = pcard->counters.insert(std::make_pair(cttype, card::counter_map::mapped_type()));
 	auto cmit = pr.first;
 	if(pr.second) {
 		cmit->second[0] = 0;
 		cmit->second[1] = 0;
 	}
-	if(!(countertype & COUNTER_NEED_ENABLE))
+	if((countertype & COUNTER_WITHOUT_PERMIT) && !(countertype & COUNTER_NEED_ENABLE))
 		cmit->second[0] += count;
 	else
 		cmit->second[1] += count;

@@ -63,6 +63,7 @@ public:
 	~effect();
 
 	int32 is_disable_related();
+	int32 is_can_be_forbidden();
 	int32 is_available();
 	int32 check_count_limit(uint8 playerid);
 	int32 is_activateable(uint8 playerid, const tevent& e, int32 neglect_cond = FALSE, int32 neglect_cost = FALSE, int32 neglect_target = FALSE);
@@ -73,7 +74,7 @@ public:
 	int32 is_target(card* pcard);
 	int32 is_target_player(uint8 playerid);
 	int32 is_player_effect_target(card* pcard);
-	int32 is_immuned(effect_set_v* effects);
+	int32 is_immuned(card* pcard);
 	int32 is_chainable(uint8 tp);
 	int32 reset(uint32 reset_level, uint32 reset_type);
 	void dec_count(uint32 playerid = 2);
@@ -149,7 +150,7 @@ enum effect_flag : uint32 {
 	EFFECT_FLAG_ABSOLUTE_TARGET		= 0x0040,
 	EFFECT_FLAG_IGNORE_IMMUNE		= 0x0080,
 	EFFECT_FLAG_SET_AVAILABLE		= 0x0100,
-	EFFECT_FLAG_CONTINUOUS			= 0x0200,
+	EFFECT_FLAG_CANNOT_NEGATE		= 0x0200,
 	EFFECT_FLAG_CANNOT_DISABLE		= 0x0400,
 	EFFECT_FLAG_PLAYER_TARGET		= 0x0800,
 	EFFECT_FLAG_BOTH_SIDE			= 0x1000,
@@ -273,13 +274,15 @@ inline effect_flag operator|(effect_flag flag1, effect_flag flag2)
 #define EFFECT_SET_ATTACK				101	//
 #define EFFECT_SET_ATTACK_FINAL			102	//
 #define EFFECT_SET_BASE_ATTACK			103	//
-#define EFFECT_UPDATE_DEFENCE			104	//
-#define EFFECT_SET_DEFENCE				105	//
-#define EFFECT_SET_DEFENCE_FINAL		106	//
-#define EFFECT_SET_BASE_DEFENCE			107	//
+#define EFFECT_UPDATE_DEFENSE			104	//
+#define EFFECT_SET_DEFENSE				105	//
+#define EFFECT_SET_DEFENSE_FINAL		106	//
+#define EFFECT_SET_BASE_DEFENSE			107	//
 #define EFFECT_REVERSE_UPDATE			108	//
 #define EFFECT_SWAP_AD					109	//
 #define EFFECT_SWAP_BASE_AD				110	//
+#define EFFECT_SWAP_ATTACK_FINAL		111
+#define EFFECT_SWAP_DEFENSE_FINAL		112
 #define EFFECT_ADD_CODE					113	//
 #define EFFECT_CHANGE_CODE				114	//
 #define EFFECT_ADD_TYPE					115	//
@@ -323,13 +326,13 @@ inline effect_flag operator|(effect_flag flag1, effect_flag flag2)
 #define EFFECT_CANNOT_M2				186
 #define EFFECT_CANNOT_EP				187
 #define EFFECT_SKIP_TURN				188
-#define EFFECT_DEFENCE_ATTACK			190
+#define EFFECT_DEFENSE_ATTACK			190
 #define EFFECT_MUST_ATTACK				191
 #define EFFECT_FIRST_ATTACK				192
 #define EFFECT_ATTACK_ALL				193
 #define EFFECT_EXTRA_ATTACK				194
 #define EFFECT_MUST_BE_ATTACKED			195
-#define EFFECT_AUTO_BE_ATTACKED			196
+#define EFFECT_ONLY_BE_ATTACKED			196
 #define EFFECT_ATTACK_DISABLED			197
 #define EFFECT_NO_BATTLE_DAMAGE			200
 #define EFFECT_AVOID_BATTLE_DAMAGE		201
@@ -355,7 +358,7 @@ inline effect_flag operator|(effect_flag flag1, effect_flag flag2)
 #define EFFECT_NONTUNER						244
 #define EFFECT_OVERLAY_REMOVE_REPLACE		245
 #define EFFECT_SCRAP_CHIMERA				246
-#define EFFECT_SPSUM_EFFECT_ACTIVATED	250
+#define EFFECT_PRE_MONSTER				250
 #define EFFECT_MATERIAL_CHECK			251
 #define EFFECT_DISABLE_FIELD			260
 #define EFFECT_USE_EXTRA_MZONE			261
@@ -394,6 +397,11 @@ inline effect_flag operator|(effect_flag flag1, effect_flag flag2)
 #define EFFECT_HAND_SYNCHRO				339
 #define EFFECT_ADD_FUSION_CODE			340
 #define EFFECT_ADD_FUSION_SETCODE		341
+#define EFFECT_RISE_TO_FULL_HEIGHT		342
+#define EFFECT_ONLY_ATTACK_MONSTER		343
+#define EFFECT_MUST_ATTACK_MONSTER		344
+#define EFFECT_PATRICIAN_OF_DARKNESS	345
+#define EFFECT_EXTRA_ATTACK_MONSTER		346
 
 #define EVENT_STARTUP		1000
 #define EVENT_FLIP			1001
@@ -411,7 +419,7 @@ inline effect_flag operator|(effect_flag flag1, effect_flag flag2)
 #define EVENT_CHAIN_SOLVING		1020
 #define EVENT_CHAIN_ACTIVATING	1021
 #define EVENT_CHAIN_SOLVED		1022
-#define EVENT_CHAIN_ACTIVATED	1023
+//#define EVENT_CHAIN_ACTIVATED	1023
 #define EVENT_CHAIN_NEGATED		1024
 #define EVENT_CHAIN_DISABLED	1025
 #define EVENT_CHAIN_END			1026
@@ -442,7 +450,7 @@ inline effect_flag operator|(effect_flag flag1, effect_flag flag2)
 #define EVENT_PRE_DAMAGE_CALCULATE	1134
 #define EVENT_DAMAGE_CALCULATING	1135
 #define EVENT_PRE_BATTLE_DAMAGE		1136
-#define EVENT_BATTLE_END			1137
+//#define EVENT_BATTLE_END			1137
 #define EVENT_BATTLED				1138
 #define EVENT_BATTLE_DESTROYING		1139
 #define EVENT_BATTLE_DESTROYED		1140
@@ -462,5 +470,6 @@ inline effect_flag operator|(effect_flag flag1, effect_flag flag2)
 #define EVENT_PHASE_START			0x2000
 #define EVENT_ADD_COUNTER			0x10000
 #define EVENT_REMOVE_COUNTER		0x20000
+#define EVENT_CUSTOM				0x10000000
 
 #endif /* EFFECT_H_ */

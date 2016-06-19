@@ -140,7 +140,7 @@ extern "C" DECL_DLLEXPORT void new_card(ptr pduel, uint32 code, uint8 owner, uin
 		ptduel->game_field->add_card(playerid, pcard, location, sequence);
 		pcard->current.position = position;
 		if(!(location & LOCATION_ONFIELD) || (position & POS_FACEUP)) {
-			pcard->enable_field_effect(TRUE);
+			pcard->enable_field_effect(true);
 			ptduel->game_field->adjust_instant();
 		}
 		if(location & LOCATION_ONFIELD) {
@@ -161,7 +161,7 @@ extern "C" DECL_DLLEXPORT void new_tag_card(ptr pduel, uint32 code, uint8 owner,
 		pcard->current.controler = owner;
 		pcard->current.location = LOCATION_DECK;
 		pcard->current.sequence = ptduel->game_field->player[owner].tag_list_main.size() - 1;
-		pcard->current.position = POS_FACEDOWN_DEFENCE;
+		pcard->current.position = POS_FACEDOWN_DEFENSE;
 		break;
 	case LOCATION_EXTRA:
 		ptduel->game_field->player[owner].tag_list_extra.push_back(pcard);
@@ -169,7 +169,7 @@ extern "C" DECL_DLLEXPORT void new_tag_card(ptr pduel, uint32 code, uint8 owner,
 		pcard->current.controler = owner;
 		pcard->current.location = LOCATION_EXTRA;
 		pcard->current.sequence = ptduel->game_field->player[owner].tag_list_extra.size() - 1;
-		pcard->current.position = POS_FACEDOWN_DEFENCE;
+		pcard->current.position = POS_FACEDOWN_DEFENSE;
 		break;
 	}
 }
@@ -266,22 +266,20 @@ extern "C" DECL_DLLEXPORT int32 query_field_card(ptr pduel, uint8 playerid, uint
 				ct += 4;
 				p += 4;
 			}
-
 		}
 	} else {
 		field::card_vector* lst;
-		field::card_vector::iterator cit;
-		if(location == LOCATION_HAND )
+		if(location == LOCATION_HAND)
 			lst = &ptduel->game_field->player[playerid].list_hand;
-		else if(location == LOCATION_GRAVE )
+		else if(location == LOCATION_GRAVE)
 			lst = &ptduel->game_field->player[playerid].list_grave;
-		else if(location == LOCATION_REMOVED )
+		else if(location == LOCATION_REMOVED)
 			lst = &ptduel->game_field->player[playerid].list_remove;
-		else if(location == LOCATION_EXTRA )
+		else if(location == LOCATION_EXTRA)
 			lst = &ptduel->game_field->player[playerid].list_extra;
-		else if(location == LOCATION_DECK )
+		else if(location == LOCATION_DECK)
 			lst = &ptduel->game_field->player[playerid].list_main;
-		for(cit = lst->begin(); cit != lst->end(); ++cit) {
+		for(auto cit = lst->begin(); cit != lst->end(); ++cit) {
 			ct += clen = (*cit)->get_infos(p, query_flag, use_cache);
 			p += clen;
 		}
