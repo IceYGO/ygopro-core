@@ -111,6 +111,12 @@ public:
 	uint32 summon_info;
 	uint32 status;
 	uint32 operation_param;
+	uint32 release_param;
+	uint32 sum_param;
+	uint32 position_param;
+	uint32 spsummon_param;
+	uint32 to_field_param;
+	uint8 direct_attackable;
 	uint8 announce_count;
 	uint8 attacked_count;
 	uint8 attack_all_target;
@@ -146,6 +152,7 @@ public:
 	effect_container single_effect;
 	effect_container field_effect;
 	effect_container equip_effect;
+	effect_container xmaterial_effect;
 	effect_indexer indexer;
 	effect_relation relate_effect;
 	effect_set_v immune_effect;
@@ -172,6 +179,7 @@ public:
 	uint32 get_ritual_level(card* pcard);
 	uint32 check_xyz_level(card* pcard, uint32 lv);
 	uint32 get_attribute();
+	uint32 get_fusion_attribute(uint8 playerid);
 	uint32 get_race();
 	uint32 get_lscale();
 	uint32 get_rscale();
@@ -183,6 +191,7 @@ public:
 	void equip(card *target, uint32 send_msg = TRUE);
 	void unequip();
 	int32 get_union_count();
+	int32 get_old_union_count();
 	void xyz_overlay(card_set* materials);
 	void xyz_add(card* mat, card_set* des);
 	void xyz_remove(card* mat);
@@ -232,8 +241,8 @@ public:
 	effect* is_affected_by_effect(int32 code);
 	effect* is_affected_by_effect(int32 code, card* target);
 	effect* check_control_effect();
-	int32 fusion_check(group* fusion_m, card* cg, int32 chkf);
-	void fusion_select(uint8 playerid, group* fusion_m, card* cg, int32 chkf);
+	int32 fusion_check(group* fusion_m, card* cg, uint32 chkf);
+	void fusion_select(uint8 playerid, group* fusion_m, card* cg, uint32 chkf);
 	int32 check_fusion_substitute(card* fcard);
 	
 	int32 is_equipable(card* pcard);
