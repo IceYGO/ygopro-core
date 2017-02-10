@@ -70,15 +70,16 @@ extern "C" DECL_DLLEXPORT ptr create_duel(uint32 seed) {
 }
 extern "C" DECL_DLLEXPORT void start_duel(ptr pduel, int options) {
 	duel* pd = (duel*)pduel;
+	int first_player = (options & DUEL_PLAYER_2_FIRST) ? 1 : 0;
 	pd->game_field->core.duel_options |= options;
 	pd->game_field->core.shuffle_hand_check[0] = FALSE;
 	pd->game_field->core.shuffle_hand_check[1] = FALSE;
 	pd->game_field->core.shuffle_deck_check[0] = FALSE;
 	pd->game_field->core.shuffle_deck_check[1] = FALSE;
-	if(pd->game_field->player[0].start_count > 0)
-		pd->game_field->draw(0, REASON_RULE, PLAYER_NONE, 0, pd->game_field->player[0].start_count);
-	if(pd->game_field->player[1].start_count > 0)
-		pd->game_field->draw(0, REASON_RULE, PLAYER_NONE, 1, pd->game_field->player[1].start_count);
+	if(pd->game_field->player[first_player].start_count > 0)
+		pd->game_field->draw(0, REASON_RULE, PLAYER_NONE, first_player, pd->game_field->player[first_player].start_count);
+	if(pd->game_field->player[1 - first_player].start_count > 0)
+		pd->game_field->draw(0, REASON_RULE, PLAYER_NONE, 1 - first_player, pd->game_field->player[1 - first_player].start_count);
 	if(options & DUEL_TAG_MODE) {
 		for(int i = 0; i < pd->game_field->player[0].start_count && pd->game_field->player[0].tag_list_main.size(); ++i) {
 			card* pcard = pd->game_field->player[0].tag_list_main.back();
@@ -99,7 +100,6 @@ extern "C" DECL_DLLEXPORT void start_duel(ptr pduel, int options) {
 			pcard->current.position = POS_FACEDOWN;
 		}
 	}
-	int first_player = (options & DUEL_PLAYER_2_FIRST) ? 1 : 0;
 	pd->game_field->add_process(PROCESSOR_TURN, 0, 0, 0, first_player, 0);
 }
 extern "C" DECL_DLLEXPORT void end_duel(ptr pduel) {
