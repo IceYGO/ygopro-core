@@ -403,6 +403,26 @@ int32 card::is_fusion_set_card(uint32 set_code) {
 	}
 	return FALSE;
 }
+int32 card::is_link_set_card(uint32 set_code) {
+	if(is_set_card(set_code))
+		return TRUE;
+	uint32 settype = set_code & 0xfff;
+	uint32 setsubtype = set_code & 0xf000;
+	effect_set eset;
+	filter_effect(EFFECT_ADD_LINK_CODE, &eset);
+	for(int32 i = 0; i < eset.size(); ++i) {
+		uint32 code = eset[i]->get_value(this);
+		card_data dat;
+		::read_card(code, &dat);
+		uint64 setcode = dat.setcode;
+		while(setcode) {
+			if ((setcode & 0xfff) == settype && (setcode & 0xf000 & setsubtype) == setsubtype)
+				return TRUE;
+			setcode = setcode >> 16;
+		}
+	}
+	return FALSE;
+}
 uint32 card::get_type() {
 	if(assume_type == ASSUME_TYPE)
 		return assume_value;
@@ -1026,6 +1046,16 @@ uint32 card::get_fusion_attribute(uint8 playerid) {
 	}
 	return attribute;
 }
+uint32 card::get_link_attribute(uint8 playerid) {
+	effect_set effects;
+	filter_effect(EFFECT_ADD_LINK_ATTRIBUTE, &effects);
+	uint32 attribute = get_attribute();
+	for (int32 i = 0; i < effects.size(); ++i) {
+		pduel->lua->add_param(playerid, PARAM_TYPE_INT);
+		attribute |= effects[i]->get_value(this, 1);
+	}
+	return attribute;
+}
 // see get_level()
 uint32 card::get_race() {
 	if(assume_type == ASSUME_RACE)
@@ -1053,6 +1083,16 @@ uint32 card::get_race() {
 		temp.race = race;
 	}
 	temp.race = 0xffffffff;
+	return race;
+}
+uint32 card::get_link_race(uint8 playerid) {
+	effect_set effects;
+	filter_effect(EFFECT_ADD_LINK_RACE, &effects);
+	uint32 race = get_race();
+	for (int32 i = 0; i < effects.size(); ++i) {
+		pduel->lua->add_param(playerid, PARAM_TYPE_INT);
+		race |= effects[i]->get_value(this, 1);
+	}
 	return race;
 }
 uint32 card::get_lscale() {
@@ -2510,11 +2550,11 @@ int32 card::filter_set_procedure(uint8 playerid, effect_set* peset, uint8 ignore
 			if(new_min < min)
 				new_min = min;
 			new_zone &= zone;
-			if(pduel->game_field->check_tribute(this, new_min, max, 0, current.controler, new_zone, releasable))
+			if(pduel->game_field->check_tribute(this, new_min, max, 0, current.controler, new_zone, releasable, POS_FACEDOWN_DEFENSE))
 				return TRUE;
 		}
 	} else
-		return pduel->game_field->check_tribute(this, min, max, 0, current.controler, zone);
+		return pduel->game_field->check_tribute(this, min, max, 0, current.controler, zone, 0xff00ff, POS_FACEDOWN_DEFENSE);
 	return FALSE;
 }
 int32 card::check_set_procedure(effect* peffect, uint8 playerid, uint8 ignore_count, uint8 min_tribute, uint32 zone) {
@@ -2759,7 +2799,7 @@ void card::get_unique_target(card_set* cset, int32 controler, card* icard) {
 		if(unique_location & LOCATION_MZONE) {
 			for(auto cit = player.list_mzone.begin(); cit != player.list_mzone.end(); ++cit) {
 				card* pcard = *cit;
-				if(pcard && (pcard != icard) && pcard->is_position(POS_FACEUP) && !pcard->is_status(STATUS_BATTLE_DESTROYED)
+				if(pcard && (pcard != icard) && pcard->is_position(POS_FACEUP) && !pcard->get_status(STATUS_BATTLE_DESTROYED | STATUS_SPSUMMON_STEP)
 					&& check_unique_code(pcard))
 					cset->insert(pcard);
 			}
@@ -3028,7 +3068,7 @@ int32 card::is_special_summonable(uint8 playerid, uint32 summon_type) {
 	pduel->game_field->restore_lp_cost();
 	return eset.size();
 }
-int32 card::is_can_be_special_summoned(effect* reason_effect, uint32 sumtype, uint8 sumpos, uint8 sumplayer, uint8 toplayer, uint8 nocheck, uint8 nolimit, uint32 zone, uint8 nozoneusedcheck) {
+int32 card::is_can_be_special_summoned(effect* reason_effect, uint32 sumtype, uint8 sumpos, uint8 sumplayer, uint8 toplayer, uint8 nocheck, uint8 nolimit, uint32 zone) {
 	if(current.location == LOCATION_MZONE)
 		return FALSE;
 	if(current.location == LOCATION_REMOVED && (current.position & POS_FACEDOWN))
@@ -3052,7 +3092,7 @@ int32 card::is_can_be_special_summoned(effect* reason_effect, uint32 sumtype, ui
 	if(is_status(STATUS_FORBIDDEN))
 		return FALSE;
 	if(zone != 0xff) {
-		if(pduel->game_field->get_useable_count(this, toplayer, LOCATION_MZONE, sumplayer, LOCATION_REASON_TOFIELD, zone, 0, nozoneusedcheck) <= 0)
+		if(pduel->game_field->get_useable_count(this, toplayer, LOCATION_MZONE, sumplayer, LOCATION_REASON_TOFIELD, zone, 0) <= 0)
 			return FALSE;
 	}
 	pduel->game_field->save_lp_cost();
