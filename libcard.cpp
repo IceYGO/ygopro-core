@@ -413,6 +413,13 @@ int32 scriptlib::card_is_link_state(lua_State *L) {
 	lua_pushboolean(L, pcard->is_link_state());
 	return 1;
 }
+int32 scriptlib::card_is_extra_link_state(lua_State *L) {
+	check_param_count(L, 1);
+	check_param(L, PARAM_TYPE_CARD, 1);
+	card* pcard = *(card**) lua_touserdata(L, 1);
+	lua_pushboolean(L, pcard->is_extra_link_state());
+	return 1;
+}
 int32 scriptlib::card_get_column_group(lua_State *L) {
 	check_param_count(L, 1);
 	check_param(L, PARAM_TYPE_CARD, 1);
@@ -590,7 +597,7 @@ int32 scriptlib::card_get_text_defense(lua_State *L) {
 		lua_pushinteger(L, pcard->data.defense);
 	return 1;
 }
-int32 scriptlib:: card_get_previous_code_onfield(lua_State *L) {
+int32 scriptlib::card_get_previous_code_onfield(lua_State *L) {
 	check_param_count(L, 1);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
@@ -1011,7 +1018,7 @@ int32 scriptlib::card_is_status(lua_State *L) {
 	check_param_count(L, 2);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
-	uint32 tstatus = lua_tounsigned(L, 2);
+	uint32 tstatus = lua_tointeger(L, 2);
 	if(pcard->status & tstatus)
 		lua_pushboolean(L, 1);
 	else
@@ -1035,7 +1042,7 @@ int32 scriptlib::card_set_status(lua_State *L) {
 	card* pcard = *(card**) lua_touserdata(L, 1);
 	if(pcard->status & STATUS_COPYING_EFFECT)
 		return 0;
-	uint32 tstatus = lua_tounsigned(L, 2);
+	uint32 tstatus = lua_tointeger(L, 2);
 	int32 enable = lua_toboolean(L, 3);
 	pcard->set_status(tstatus, enable);
 	return 0;
@@ -1360,8 +1367,9 @@ int32 scriptlib::card_check_activate_effect(lua_State *L) {
 	int32 copy_info = lua_toboolean(L, 4);
 	duel* pduel = pcard->pduel;
 	tevent pe;
-	for(auto eit = pcard->field_effect.begin(); eit != pcard->field_effect.end(); ++eit) {
+	for(auto eit = pcard->field_effect.begin(); eit != pcard->field_effect.end();) {
 		effect* peffect = eit->second;
+		++eit;
 		if((peffect->type & EFFECT_TYPE_ACTIVATE)
 		        && pduel->game_field->check_event_c(peffect, pduel->game_field->core.reason_player, neglect_con, neglect_cost, copy_info, &pe)) {
 			if(!copy_info || (peffect->code == EVENT_FREE_CHAIN)) {
@@ -1562,7 +1570,7 @@ int32 scriptlib::card_set_flag_effect_label(lua_State *L) {
 	check_param_count(L, 3);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
-	uint32 code = (lua_tounsigned(L, 2) & 0xfffffff) | 0x10000000;
+	uint32 code = (lua_tointeger(L, 2) & 0xfffffff) | 0x10000000;
 	int32 lab = lua_tointeger(L, 3);
 	auto eit = pcard->single_effect.find(code);
 	if(eit == pcard->single_effect.end())
@@ -1577,7 +1585,7 @@ int32 scriptlib::card_get_flag_effect_label(lua_State *L) {
 	check_param_count(L, 2);
 	check_param(L, PARAM_TYPE_CARD, 1);
 	card* pcard = *(card**) lua_touserdata(L, 1);
-	uint32 code = (lua_tounsigned(L, 2) & 0xfffffff) | 0x10000000;
+	uint32 code = (lua_tointeger(L, 2) & 0xfffffff) | 0x10000000;
 	auto rg = pcard->single_effect.equal_range(code);
 	int32 count = 0;
 	for(; rg.first != rg.second; ++rg.first) {
