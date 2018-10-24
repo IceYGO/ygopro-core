@@ -18,7 +18,7 @@ int32 scriptlib::debug_message(lua_State *L) {
 	lua_getglobal(L, "tostring");
 	lua_pushvalue(L, -2);
 	lua_pcall(L, 1, 1, 0);
-	interpreter::strcpy(pduel->strbuffer, lua_tostring(L, -1));
+	interpreter::sprintf(pduel->strbuffer, "%s", lua_tostring(L, -1));
 	handle_message(pduel, 2);
 	return 0;
 }
@@ -47,7 +47,7 @@ int32 scriptlib::debug_add_card(lua_State *L) {
 			pduel->game_field->add_card(playerid, pcard, location, sequence);
 		}
 		pcard->current.position = position;
-		if(!(location & (LOCATION_ONFIELD + LOCATION_PZONE)) || (position & POS_FACEUP)) {
+		if(!(location & (LOCATION_ONFIELD | LOCATION_PZONE)) || (position & POS_FACEUP)) {
 			pcard->enable_field_effect(true);
 			pduel->game_field->adjust_instant();
 		}
@@ -64,8 +64,8 @@ int32 scriptlib::debug_add_card(lua_State *L) {
 		pcard->current.controler = PLAYER_NONE;
 		pcard->current.location = LOCATION_OVERLAY;
 		pcard->current.sequence = fcard->xyz_materials.size() - 1;
-		for(auto eit = pcard->xmaterial_effect.begin(); eit != pcard->xmaterial_effect.end(); ++eit) {
-			effect* peffect = eit->second;
+		for(auto& eit : pcard->xmaterial_effect) {
+			effect* peffect = eit.second;
 			if(peffect->type & EFFECT_TYPE_FIELD)
 				pduel->game_field->add_effect(peffect);
 		}

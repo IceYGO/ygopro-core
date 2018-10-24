@@ -8,7 +8,6 @@
 #ifndef FIELD_H_
 #define FIELD_H_
 
-#include "memory.h"
 #include "common.h"
 #include "effectset.h"
 #include <vector>
@@ -19,7 +18,6 @@
 #include <functional>
 #include <unordered_map>
 #include <unordered_set>
-#include <cmath>
 
 class card;
 struct card_data;
@@ -160,7 +158,7 @@ struct processor {
 	typedef std::vector<chain> chain_array;
 	typedef std::list<processor_unit> processor_list;
 	typedef std::set<card*, card_sort> card_set;
-	typedef std::set<std::pair<effect*, tevent> > delayed_effect_collection;
+	typedef std::set<std::pair<effect*, tevent>> delayed_effect_collection;
 	struct chain_limit_t {
 		chain_limit_t(int32 f, int32 p): function(f), player(p) {}
 		int32 function;
@@ -192,9 +190,12 @@ struct processor {
 	event_list sub_solving_event;
 	chain_array select_chains;
 	chain_array current_chain;
-	chain_list tpchain;
-	chain_list ntpchain;
+	chain_array tmp_chains;
 	chain_list continuous_chain;
+	chain_list solving_continuous;
+	chain_list sub_solving_continuous;
+	chain_list delayed_continuous_tp;
+	chain_list delayed_continuous_ntp;
 	chain_list desrep_chain;
 	chain_list new_fchain;
 	chain_list new_fchain_s;
@@ -204,7 +205,6 @@ struct processor {
 	chain_list new_ochain_b;
 	chain_list new_ochain_h;
 	chain_list new_chains;
-	chain_list tmp_chain;
 	delayed_effect_collection delayed_quick_tmp;
 	delayed_effect_collection delayed_quick_break;
 	delayed_effect_collection delayed_quick;
@@ -227,22 +227,19 @@ struct processor {
 	card_set discarded_set;
 	card_set destroy_canceled;
 	card_set delayed_enable_set;
-	card_set temp_set;
+	card_set set_group_pre_set;
+	card_set set_group_set;
 	effect_set_v disfield_effects;
-	effect_set_v extram_effects;
-	effect_set_v extras_effects;
+	effect_set_v extra_mzone_effects;
+	effect_set_v extra_szone_effects;
 	std::set<effect*> reseted_effects;
-	std::list<effect*> delayed_tp;
-	std::list<effect*> delayed_ntp;
-	event_list delayed_tev;
-	event_list delayed_ntev;
 	std::unordered_map<card*, uint32> readjust_map;
 	std::unordered_set<card*> unique_cards[2];
 	std::unordered_map<uint32, uint32> effect_count_code;
 	std::unordered_map<uint32, uint32> effect_count_code_duel;
 	std::unordered_map<uint32, uint32> spsummon_once_map[2];
 	std::unordered_map<uint32, uint32> spsummon_once_map_rst[2];
-	std::multimap<int32, card*, std::greater<int32> > xmaterial_lst;
+	std::multimap<int32, card*, std::greater<int32>> xmaterial_lst;
 	ptr temp_var[4];
 	uint32 global_flag;
 	uint16 pre_field[2];
@@ -278,6 +275,8 @@ struct processor {
 	uint32 copy_reset;
 	uint8 copy_reset_count;
 	uint32 last_control_changed_id;
+	uint32 set_group_used_zones;
+	uint8 set_group_seq[7];
 	uint8 dice_result[5];
 	uint8 coin_result[5];
 	uint8 to_bp;
@@ -313,12 +312,12 @@ struct processor {
 	uint32 hint_timing[2];
 	uint8 current_player;
 	uint8 conti_player;
-	std::unordered_map<uint32, std::pair<uint32, uint32> > summon_counter;
-	std::unordered_map<uint32, std::pair<uint32, uint32> > normalsummon_counter;
-	std::unordered_map<uint32, std::pair<uint32, uint32> > spsummon_counter;
-	std::unordered_map<uint32, std::pair<uint32, uint32> > flipsummon_counter;
-	std::unordered_map<uint32, std::pair<uint32, uint32> > attack_counter;
-	std::unordered_map<uint32, std::pair<uint32, uint32> > chain_counter;
+	std::unordered_map<uint32, std::pair<uint32, uint32>> summon_counter;
+	std::unordered_map<uint32, std::pair<uint32, uint32>> normalsummon_counter;
+	std::unordered_map<uint32, std::pair<uint32, uint32>> spsummon_counter;
+	std::unordered_map<uint32, std::pair<uint32, uint32>> flipsummon_counter;
+	std::unordered_map<uint32, std::pair<uint32, uint32>> attack_counter;
+	std::unordered_map<uint32, std::pair<uint32, uint32>> chain_counter;
 	processor_list recover_damage_reserve;
 	effect_vector dec_count_reserve;
 };
@@ -347,7 +346,7 @@ public:
 
 	static int32 field_used_count[32];
 	explicit field(duel* pduel);
-	~field();
+	~field() = default;
 	void reload_field_info();
 
 	void add_card(uint8 playerid, card* pcard, uint8 location, uint8 sequence, uint8 pzone = FALSE);
@@ -428,7 +427,7 @@ public:
 
 	uint32 get_field_counter(uint8 self, uint8 s, uint8 o, uint16 countertype);
 	int32 effect_replace_check(uint32 code, const tevent& e);
-	int32 get_attack_target(card* pcard, card_vector* v, uint8 chain_attack = FALSE);
+	int32 get_attack_target(card* pcard, card_vector* v, uint8 chain_attack = FALSE, bool select_target = true);
 	bool confirm_attack_target();
 	void attack_all_target_check();
 	int32 check_synchro_material(card* pcard, int32 findex1, int32 findex2, int32 min, int32 max, card* smat, group* mg);
@@ -446,8 +445,8 @@ public:
 	int32 is_player_can_discard_deck_as_cost(uint8 playerid, int32 count);
 	int32 is_player_can_discard_hand(uint8 playerid, card* pcard, effect* peffect, uint32 reason);
 	int32 is_player_can_summon(uint8 playerid);
-	int32 is_player_can_summon(uint32 sumtype, uint8 playerid, card* pcard);
-	int32 is_player_can_mset(uint32 sumtype, uint8 playerid, card* pcard);
+	int32 is_player_can_summon(uint32 sumtype, uint8 playerid, card* pcard, uint8 toplayer);
+	int32 is_player_can_mset(uint32 sumtype, uint8 playerid, card* pcard, uint8 toplayer);
 	int32 is_player_can_sset(uint8 playerid, card* pcard);
 	int32 is_player_can_spsummon(uint8 playerid);
 	int32 is_player_can_spsummon(effect* peffect, uint32 sumtype, uint8 sumpos, uint8 playerid, uint8 toplayer, card* pcard);
@@ -487,7 +486,7 @@ public:
 	int32 process_quick_effect(int16 step, int32 skip_freechain, uint8 priority);
 	int32 process_instant_event();
 	int32 process_single_event();
-	int32 process_single_event(effect* peffect, const tevent& e, effect_vector& tp, effect_vector& ntp, event_list& tev, event_list& ntev);
+	int32 process_single_event(effect* peffect, const tevent& e, chain_list& tp, chain_list& ntp);
 	int32 process_idle_command(uint16 step);
 	int32 process_battle_command(uint16 step);
 	int32 process_damage_step(uint16 step, uint32 new_attack);
@@ -495,8 +494,8 @@ public:
 	int32 process_turn(uint16 step, uint8 turn_player);
 
 	int32 add_chain(uint16 step);
-	int32 sort_chain(uint16 step, uint8 tp);
-	int32 solve_continuous(uint16 step, effect* peffect, uint8 triggering_player);
+	void solve_continuous(uint8 playerid, effect* peffect, const tevent& e);
+	int32 solve_continuous(uint16 step);
 	int32 solve_chain(uint16 step, uint32 chainend_arg1, uint32 chainend_arg2);
 	int32 break_effect();
 	void adjust_instant();
@@ -554,15 +553,15 @@ public:
 	int32 flip_summon(uint16 step, uint8 sumplayer, card* target);
 	int32 mset(uint16 step, uint8 setplayer, card* ptarget, effect* proc, uint8 ignore_count, uint8 min_tribute, uint32 zone);
 	int32 sset(uint16 step, uint8 setplayer, uint8 toplayer, card* ptarget);
-	int32 sset_g(uint16 step, uint8 setplayer, uint8 toplayer, group* ptarget);
+	int32 sset_g(uint16 step, uint8 setplayer, uint8 toplayer, group* ptarget, uint8 confirm);
 	int32 special_summon_rule(uint16 step, uint8 sumplayer, card* target, uint32 summon_type);
 	int32 special_summon_step(uint16 step, group* targets, card* target, uint32 zone);
 	int32 special_summon(uint16 step, effect* reason_effect, uint8 reason_player, group* targets, uint32 zone);
-	int32 destroy(uint16 step, group* targets, card* target, uint8 battle);
+	int32 destroy_replace(uint16 step, group* targets, card* target, uint8 battle);
 	int32 destroy(uint16 step, group* targets, effect* reason_effect, uint32 reason, uint8 reason_player);
-	int32 release(uint16 step, group* targets, card* target);
+	int32 release_replace(uint16 step, group* targets, card* target);
 	int32 release(uint16 step, group* targets, effect* reason_effect, uint32 reason, uint8 reason_player);
-	int32 send_to(uint16 step, group* targets, card* target);
+	int32 send_replace(uint16 step, group* targets, card* target);
 	int32 send_to(uint16 step, group* targets, effect* reason_effect, uint32 reason, uint8 reason_player);
 	int32 discard_deck(uint16 step, uint8 playerid, uint8 count, uint32 reason);
 	int32 move_to_field(uint16 step, card* target, uint32 enable, uint32 ret, uint32 is_equip, uint32 zone);
@@ -606,6 +605,8 @@ public:
 #define CHAIN_HAND_EFFECT		0x04
 #define CHAIN_CONTINUOUS_CARD	0x08
 #define CHAIN_ACTIVATING		0x10
+#define CHAIN_HAND_TRIGGER		0x20
+#define CHAIN_DECK_EFFECT		0x40
 #define CHAININFO_CHAIN_COUNT			0x01
 #define CHAININFO_TRIGGERING_EFFECT		0x02
 #define CHAININFO_TRIGGERING_PLAYER		0x04
@@ -682,7 +683,7 @@ public:
 #define PROCESSOR_SELECT_PLACE		18
 #define PROCESSOR_SELECT_POSITION	19
 #define PROCESSOR_SELECT_TRIBUTE_P	20
-#define PROCESSOR_SORT_CHAIN		21
+//#define PROCESSOR_SORT_CHAIN		21
 #define PROCESSOR_SELECT_COUNTER	22
 #define PROCESSOR_SELECT_SUM		23
 #define PROCESSOR_SELECT_DISFIELD	24
@@ -707,9 +708,9 @@ public:
 #define PROCESSOR_MOVETOFIELD		53
 #define PROCESSOR_CHANGEPOS			54
 #define PROCESSOR_OPERATION_REPLACE	55
-#define PROCESSOR_DESTROY_STEP		56
-#define PROCESSOR_RELEASE_STEP		57
-#define PROCESSOR_SENDTO_STEP		58
+#define PROCESSOR_DESTROY_REPLACE	56
+#define PROCESSOR_RELEASE_REPLACE	57
+#define PROCESSOR_SENDTO_REPLACE	58
 #define PROCESSOR_SUMMON_RULE		60
 #define PROCESSOR_SPSUMMON_RULE		61
 #define PROCESSOR_SPSUMMON			62
@@ -776,141 +777,5 @@ public:
 #define PROCESSOR_SORT_DECK_S		152
 #define PROCESSOR_REMOVEOL_S		160
 #define PROCESSOR_MOVETOFIELD_S		161
-
-//Hints
-#define HINT_EVENT				1
-#define HINT_MESSAGE			2
-#define HINT_SELECTMSG			3
-#define HINT_OPSELECTED			4
-#define HINT_EFFECT				5
-#define HINT_RACE				6
-#define HINT_ATTRIB				7
-#define HINT_CODE				8
-#define HINT_NUMBER				9
-#define HINT_CARD				10
-//
-#define CHINT_TURN				1
-#define CHINT_CARD				2
-#define CHINT_RACE				3
-#define CHINT_ATTRIBUTE			4
-#define CHINT_NUMBER			5
-#define CHINT_DESC_ADD			6
-#define CHINT_DESC_REMOVE		7
-//
-#define PHINT_DESC_ADD			6
-#define PHINT_DESC_REMOVE		7
-//
-#define EDESC_OPERATION			1
-#define EDESC_RESET				2
-//
-#define OPCODE_ADD				0x40000000
-#define OPCODE_SUB				0x40000001
-#define OPCODE_MUL				0x40000002
-#define OPCODE_DIV				0x40000003
-#define OPCODE_AND				0x40000004
-#define OPCODE_OR				0x40000005
-#define OPCODE_NEG				0x40000006
-#define OPCODE_NOT				0x40000007
-#define OPCODE_ISCODE			0x40000100
-#define OPCODE_ISSETCARD		0x40000101
-#define OPCODE_ISTYPE			0x40000102
-#define OPCODE_ISRACE			0x40000103
-#define OPCODE_ISATTRIBUTE		0x40000104
-//Messages
-#define MSG_RETRY				1
-#define MSG_HINT				2
-#define MSG_WAITING				3
-#define MSG_START				4
-#define MSG_WIN					5
-#define MSG_UPDATE_DATA			6
-#define MSG_UPDATE_CARD			7
-#define MSG_REQUEST_DECK		8
-#define MSG_SELECT_BATTLECMD	10
-#define MSG_SELECT_IDLECMD		11
-#define MSG_SELECT_EFFECTYN		12
-#define MSG_SELECT_YESNO		13
-#define MSG_SELECT_OPTION		14
-#define MSG_SELECT_CARD			15
-#define MSG_SELECT_CHAIN		16
-#define MSG_SELECT_PLACE		18
-#define MSG_SELECT_POSITION		19
-#define MSG_SELECT_TRIBUTE		20
-#define MSG_SORT_CHAIN			21
-#define MSG_SELECT_COUNTER		22
-#define MSG_SELECT_SUM			23
-#define MSG_SELECT_DISFIELD		24
-#define MSG_SORT_CARD			25
-#define MSG_SELECT_UNSELECT_CARD	26
-#define MSG_CONFIRM_DECKTOP		30
-#define MSG_CONFIRM_CARDS		31
-#define MSG_SHUFFLE_DECK		32
-#define MSG_SHUFFLE_HAND		33
-#define MSG_REFRESH_DECK		34
-#define MSG_SWAP_GRAVE_DECK		35
-#define MSG_SHUFFLE_SET_CARD	36
-#define MSG_REVERSE_DECK		37
-#define MSG_DECK_TOP			38
-#define MSG_SHUFFLE_EXTRA		39
-#define MSG_NEW_TURN			40
-#define MSG_NEW_PHASE			41
-#define MSG_CONFIRM_EXTRATOP	42
-#define MSG_MOVE				50
-#define MSG_POS_CHANGE			53
-#define MSG_SET					54
-#define MSG_SWAP				55
-#define MSG_FIELD_DISABLED		56
-#define MSG_SUMMONING			60
-#define MSG_SUMMONED			61
-#define MSG_SPSUMMONING			62
-#define MSG_SPSUMMONED			63
-#define MSG_FLIPSUMMONING		64
-#define MSG_FLIPSUMMONED		65
-#define MSG_CHAINING			70
-#define MSG_CHAINED				71
-#define MSG_CHAIN_SOLVING		72
-#define MSG_CHAIN_SOLVED		73
-#define MSG_CHAIN_END			74
-#define MSG_CHAIN_NEGATED		75
-#define MSG_CHAIN_DISABLED		76
-#define MSG_CARD_SELECTED		80
-#define MSG_RANDOM_SELECTED		81
-#define MSG_BECOME_TARGET		83
-#define MSG_DRAW				90
-#define MSG_DAMAGE				91
-#define MSG_RECOVER				92
-#define MSG_EQUIP				93
-#define MSG_LPUPDATE			94
-#define MSG_UNEQUIP				95
-#define MSG_CARD_TARGET			96
-#define MSG_CANCEL_TARGET		97
-#define MSG_PAY_LPCOST			100
-#define MSG_ADD_COUNTER			101
-#define MSG_REMOVE_COUNTER		102
-#define MSG_ATTACK				110
-#define MSG_BATTLE				111
-#define MSG_ATTACK_DISABLED		112
-#define MSG_DAMAGE_STEP_START	113
-#define MSG_DAMAGE_STEP_END		114
-#define MSG_MISSED_EFFECT		120
-#define MSG_BE_CHAIN_TARGET		121
-#define MSG_CREATE_RELATION		122
-#define MSG_RELEASE_RELATION	123
-#define MSG_TOSS_COIN			130
-#define MSG_TOSS_DICE			131
-#define MSG_ROCK_PAPER_SCISSORS	132
-#define MSG_HAND_RES			133
-#define MSG_ANNOUNCE_RACE		140
-#define MSG_ANNOUNCE_ATTRIB		141
-#define MSG_ANNOUNCE_CARD		142
-#define MSG_ANNOUNCE_NUMBER		143
-#define MSG_ANNOUNCE_CARD_FILTER	144
-#define MSG_CARD_HINT			160
-#define MSG_TAG_SWAP			161
-#define MSG_RELOAD_FIELD		162	// Debug.ReloadFieldEnd()
-#define MSG_AI_NAME				163
-#define MSG_SHOW_HINT			164
-#define MSG_PLAYER_HINT			165
-#define MSG_MATCH_KILL			170
-#define MSG_CUSTOM_MSG			180
 
 #endif /* FIELD_H_ */

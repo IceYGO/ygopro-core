@@ -63,7 +63,7 @@ extern "C" DECL_DLLEXPORT ptr create_duel(uint32 seed) {
 	pduel->random.reset(seed);
 	return (ptr)pduel;
 }
-extern "C" DECL_DLLEXPORT void start_duel(ptr pduel, int options) {
+extern "C" DECL_DLLEXPORT void start_duel(ptr pduel, int32 options) {
 	duel* pd = (duel*)pduel;
 	pd->game_field->core.duel_options |= options;
 	int first_player = (options & DUEL_PLAYER_2_FIRST) ? 1 : 0;
@@ -227,14 +227,14 @@ extern "C" DECL_DLLEXPORT int32 query_field_count(ptr pduel, uint8 playerid, uin
 		return player.list_main.size();
 	if(location == LOCATION_MZONE) {
 		uint32 count = 0;
-		for(auto cit = player.list_mzone.begin(); cit != player.list_mzone.end(); ++cit)
-			if(*cit) count++;
+		for(auto& pcard : player.list_mzone)
+			if(pcard) count++;
 		return count;
 	}
 	if(location == LOCATION_SZONE) {
 		uint32 count = 0;
-		for(auto cit = player.list_szone.begin(); cit != player.list_szone.end(); ++cit)
-			if(*cit) count++;
+		for(auto& pcard : player.list_szone)
+			if(pcard) count++;
 		return count;
 	}
 	return 0;
@@ -244,34 +244,29 @@ extern "C" DECL_DLLEXPORT int32 query_field_card(ptr pduel, uint8 playerid, uint
 		return 0;
 	duel* ptduel = (duel*)pduel;
 	auto& player = ptduel->game_field->player[playerid];
-	uint32 ct = 0, clen;
 	byte* p = buf;
 	if(location == LOCATION_MZONE) {
-		for(auto cit = player.list_mzone.begin(); cit != player.list_mzone.end(); ++cit) {
-			card* pcard = *cit;
+		for(auto& pcard : player.list_mzone) {
 			if(pcard) {
-				ct += clen = pcard->get_infos(p, query_flag, use_cache);
+				uint32 clen = pcard->get_infos(p, query_flag, use_cache);
 				p += clen;
 			} else {
 				*((int32*)p) = 4;
-				ct += 4;
 				p += 4;
 			}
 		}
 	} else if(location == LOCATION_SZONE) {
-		for(auto cit = player.list_szone.begin(); cit != player.list_szone.end(); ++cit) {
-			card* pcard = *cit;
+		for(auto& pcard : player.list_szone) {
 			if(pcard) {
-				ct += clen = pcard->get_infos(p, query_flag, use_cache);
+				uint32 clen = pcard->get_infos(p, query_flag, use_cache);
 				p += clen;
 			} else {
 				*((int32*)p) = 4;
-				ct += 4;
 				p += 4;
 			}
 		}
 	} else {
-		field::card_vector* lst;
+		field::card_vector* lst = 0;
 		if(location == LOCATION_HAND)
 			lst = &player.list_hand;
 		else if(location == LOCATION_GRAVE)
@@ -282,61 +277,60 @@ extern "C" DECL_DLLEXPORT int32 query_field_card(ptr pduel, uint8 playerid, uint
 			lst = &player.list_extra;
 		else if(location == LOCATION_DECK)
 			lst = &player.list_main;
-		for(auto cit = lst->begin(); cit != lst->end(); ++cit) {
-			ct += clen = (*cit)->get_infos(p, query_flag, use_cache);
+		for(auto& pcard : *lst) {
+			uint32 clen = pcard->get_infos(p, query_flag, use_cache);
 			p += clen;
 		}
 	}
-	return ct;
+	return (int32)(p - buf);
 }
 extern "C" DECL_DLLEXPORT int32 query_field_info(ptr pduel, byte* buf) {
 	duel* ptduel = (duel*)pduel;
-	*buf++ = MSG_RELOAD_FIELD;
-	*buf++ = ptduel->game_field->core.duel_rule;
+	byte* p = buf;
+	*p++ = MSG_RELOAD_FIELD;
+	*p++ = ptduel->game_field->core.duel_rule;
 	for(int playerid = 0; playerid < 2; ++playerid) {
 		auto& player = ptduel->game_field->player[playerid];
-		*((int*)(buf)) = player.lp;
-		buf += 4;
-		for(auto cit = player.list_mzone.begin(); cit != player.list_mzone.end(); ++cit) {
-			card* pcard = *cit;
+		*((int*)p) = player.lp;
+		p += 4;
+		for(auto& pcard : player.list_mzone) {
 			if(pcard) {
-				*buf++ = 1;
-				*buf++ = pcard->current.position;
-				*buf++ = pcard->xyz_materials.size();
+				*p++ = 1;
+				*p++ = pcard->current.position;
+				*p++ = pcard->xyz_materials.size();
 			} else {
-				*buf++ = 0;
+				*p++ = 0;
 			}
 		}
-		for(auto cit = player.list_szone.begin(); cit != player.list_szone.end(); ++cit) {
-			card* pcard = *cit;
+		for(auto& pcard : player.list_szone) {
 			if(pcard) {
-				*buf++ = 1;
-				*buf++ = pcard->current.position;
+				*p++ = 1;
+				*p++ = pcard->current.position;
 			} else {
-				*buf++ = 0;
+				*p++ = 0;
 			}
 		}
-		*buf++ = player.list_main.size();
-		*buf++ = player.list_hand.size();
-		*buf++ = player.list_grave.size();
-		*buf++ = player.list_remove.size();
-		*buf++ = player.list_extra.size();
-		*buf++ = player.extra_p_count;
+		*p++ = player.list_main.size();
+		*p++ = player.list_hand.size();
+		*p++ = player.list_grave.size();
+		*p++ = player.list_remove.size();
+		*p++ = player.list_extra.size();
+		*p++ = player.extra_p_count;
 	}
-	*buf++ = ptduel->game_field->core.current_chain.size();
-	for(auto chit = ptduel->game_field->core.current_chain.begin(); chit != ptduel->game_field->core.current_chain.end(); ++chit) {
-		effect* peffect = chit->triggering_effect;
-		*((int*)(buf)) = peffect->get_handler()->data.code;
-		buf += 4;
-		*((int*)(buf)) = peffect->get_handler()->get_info_location();
-		buf += 4;
-		*buf++ = chit->triggering_controler;
-		*buf++ = (uint8)chit->triggering_location;
-		*buf++ = chit->triggering_sequence;
-		*((int*)(buf)) = peffect->description;
-		buf += 4;
+	*p++ = ptduel->game_field->core.current_chain.size();
+	for(const auto& ch : ptduel->game_field->core.current_chain) {
+		effect* peffect = ch.triggering_effect;
+		*((int*)p) = peffect->get_handler()->data.code;
+		p += 4;
+		*((int*)p) = peffect->get_handler()->get_info_location();
+		p += 4;
+		*p++ = ch.triggering_controler;
+		*p++ = (uint8)ch.triggering_location;
+		*p++ = ch.triggering_sequence;
+		*((int*)p) = peffect->description;
+		p += 4;
 	}
-	return 0;
+	return (int32)(p - buf);
 }
 extern "C" DECL_DLLEXPORT void set_responsei(ptr pduel, int32 value) {
 	((duel*)pduel)->set_responsei(value);
@@ -344,6 +338,6 @@ extern "C" DECL_DLLEXPORT void set_responsei(ptr pduel, int32 value) {
 extern "C" DECL_DLLEXPORT void set_responseb(ptr pduel, byte* buf) {
 	((duel*)pduel)->set_responseb(buf);
 }
-extern "C" DECL_DLLEXPORT int32 preload_script(ptr pduel, char* script, int32 len) {
+extern "C" DECL_DLLEXPORT int32 preload_script(ptr pduel, const char* script, int32 len) {
 	return ((duel*)pduel)->lua->load_script(script);
 }

@@ -27,7 +27,6 @@ enum effect_flag2 : uint32;
 
 class effect {
 public:
-	int32 scrtype;
 	int32 ref_handle;
 	duel* pduel;
 	card* owner;
@@ -56,7 +55,7 @@ public:
 	card* active_handler;
 	uint16 status;
 	uint32 label;
-	void* label_object;
+	int32 label_object;
 	int32 condition;
 	int32 cost;
 	int32 target;
@@ -64,7 +63,7 @@ public:
 	int32 operation;
 
 	explicit effect(duel* pd);
-	~effect();
+	~effect() = default;
 
 	int32 is_disable_related();
 	int32 is_can_be_forbidden();
@@ -91,6 +90,7 @@ public:
 	void get_value(card* pcard, uint32 extraargs, std::vector<int32>* result);
 	void get_value(effect* peffect, uint32 extraargs, std::vector<int32>* result);
 	int32 check_value_condition(uint32 extraargs = 0);
+	void* get_label_object();
 	int32 get_speed();
 	effect* clone();
 	card* get_owner() const;
@@ -100,6 +100,8 @@ public:
 	int32 in_range(card* pcard);
 	int32 in_range(const chain& ch);
 	void set_activate_location();
+	void set_active_type();
+	uint32 get_active_type();
 	bool is_flag(effect_flag flag) const {
 		return !!(this->flag[0] & flag);
 	}
@@ -111,6 +113,7 @@ public:
 //status
 #define EFFECT_STATUS_AVAILABLE	0x0001
 //#define EFFECT_STATUS_ACTIVATED	0x0002
+#define EFFECT_STATUS_SPSELF	0x0004
 
 #define EFFECT_COUNT_CODE_OATH 0x10000000
 #define EFFECT_COUNT_CODE_DUEL 0x20000000
@@ -181,16 +184,16 @@ enum effect_flag : uint32 {
 	EFFECT_FLAG_NO_TURN_RESET		= 0x400000,
 	EFFECT_FLAG_EVENT_PLAYER		= 0x800000,
 	EFFECT_FLAG_OWNER_RELATE		= 0x1000000,
-	EFFECT_FLAG_AVAILABLE_BD		= 0x2000000,
+//	EFFECT_FLAG_AVAILABLE_BD		= 0x2000000,
 	EFFECT_FLAG_CLIENT_HINT			= 0x4000000,
-	EFFECT_FLAG_CHAIN_UNIQUE		= 0x8000000,
-//	EFFECT_FLAG_NAGA				= 0x10000000,
+//	EFFECT_FLAG_CHAIN_UNIQUE		= 0x8000000,
+	EFFECT_FLAG_LIMIT_ZONE			= 0x10000000,
 //	EFFECT_FLAG_COF					= 0x20000000,
-	EFFECT_FLAG_CVAL_CHECK			= 0x40000000,
+//	EFFECT_FLAG_CVAL_CHECK			= 0x40000000,
 	EFFECT_FLAG_IMMEDIATELY_APPLY	= 0x80000000,
 };
 enum effect_flag2 : uint32 {
-	EFFECT_FLAG2_NAGA				= 0x0001,
+//	EFFECT_FLAG2_NAGA				= 0x0001,
 	EFFECT_FLAG2_COF				= 0x0002,
 };
 inline effect_flag operator|(effect_flag flag1, effect_flag flag2)
@@ -344,12 +347,13 @@ inline effect_flag operator|(effect_flag flag1, effect_flag flag2)
 #define EFFECT_CANNOT_M2				186
 #define EFFECT_CANNOT_EP				187
 #define EFFECT_SKIP_TURN				188
+#define EFFECT_SKIP_EP					189
 #define EFFECT_DEFENSE_ATTACK			190
 #define EFFECT_MUST_ATTACK				191
 #define EFFECT_FIRST_ATTACK				192
 #define EFFECT_ATTACK_ALL				193
 #define EFFECT_EXTRA_ATTACK				194
-#define EFFECT_MUST_BE_ATTACKED			195
+//#define EFFECT_MUST_BE_ATTACKED			195
 #define EFFECT_ONLY_BE_ATTACKED			196
 #define EFFECT_ATTACK_DISABLED			197
 #define EFFECT_NO_BATTLE_DAMAGE			200
@@ -416,12 +420,10 @@ inline effect_flag operator|(effect_flag flag1, effect_flag flag2)
 #define EFFECT_ADD_SETCODE				334
 #define EFFECT_NO_EFFECT_DAMAGE			335
 #define EFFECT_UNSUMMONABLE_CARD		336
-//#define EFFECT_DISABLE_CHAIN_FIELD		337
 #define EFFECT_DISCARD_COST_CHANGE		338
 #define EFFECT_HAND_SYNCHRO				339
 #define EFFECT_ADD_FUSION_CODE			340
 #define EFFECT_ADD_FUSION_SETCODE		341
-#define EFFECT_RISE_TO_FULL_HEIGHT		342
 #define EFFECT_ONLY_ATTACK_MONSTER		343
 #define EFFECT_MUST_ATTACK_MONSTER		344
 #define EFFECT_PATRICIAN_OF_DARKNESS	345
@@ -477,6 +479,9 @@ inline effect_flag operator|(effect_flag flag1, effect_flag flag2)
 #define EVENT_DAMAGE				1111
 #define EVENT_RECOVER				1112
 #define EVENT_PREDRAW				1113
+#define EVENT_SUMMON_NEGATED		1114
+#define EVENT_FLIP_SUMMON_NEGATED	1115
+#define EVENT_SPSUMMON_NEGATED		1116
 #define EVENT_CONTROL_CHANGED		1120
 #define EVENT_EQUIP					1121
 #define EVENT_ATTACK_ANNOUNCE		1130
@@ -484,7 +489,7 @@ inline effect_flag operator|(effect_flag flag1, effect_flag flag2)
 #define EVENT_BATTLE_START			1132
 #define EVENT_BATTLE_CONFIRM		1133
 #define EVENT_PRE_DAMAGE_CALCULATE	1134
-#define EVENT_DAMAGE_CALCULATING	1135
+//#define EVENT_DAMAGE_CALCULATING	1135
 #define EVENT_PRE_BATTLE_DAMAGE		1136
 //#define EVENT_BATTLE_END			1137
 #define EVENT_BATTLED				1138

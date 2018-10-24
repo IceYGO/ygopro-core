@@ -113,6 +113,8 @@ public:
 	static int32 card_is_level(lua_State *L);
 	static int32 card_is_rank(lua_State *L);
 	static int32 card_is_link(lua_State *L);
+	static int32 card_is_attack(lua_State *L);
+	static int32 card_is_defense(lua_State *L);
 	static int32 card_is_race(lua_State *L);
 	static int32 card_is_link_race(lua_State *L);
 	static int32 card_is_attribute(lua_State *L);
@@ -554,6 +556,7 @@ public:
 	static int32 duel_is_player_can_send_to_hand(lua_State *L);
 	static int32 duel_is_player_can_send_to_grave(lua_State *L);
 	static int32 duel_is_player_can_send_to_deck(lua_State *L);
+	static int32 duel_is_player_can_additional_summon(lua_State *L);
 	static int32 duel_is_chain_negatable(lua_State *L);
 	static int32 duel_is_chain_disablable(lua_State *L);
 	static int32 duel_check_chain_target(lua_State *L);
