@@ -242,7 +242,19 @@ uint32 card::get_info_location() {
 		return c + (l << 8) + (s << 16) + (ss << 24);
 	}
 }
-// get the current code
+// mapping of double-name cards
+uint32 card::second_code(uint32 code){
+	switch(code){
+		case CARD_MARINE_DOLPHIN:
+			return 17955766u;
+		case CARD_TWINKLE_MOSS:
+			return 17732278u;
+		default:
+			return 0;
+	}
+}
+// return: the current card name
+// for double-name card, it returns printed name
 uint32 card::get_code() {
 	if(assume_type == ASSUME_CODE)
 		return assume_value;
@@ -261,21 +273,24 @@ uint32 card::get_code() {
 	} else {
 		card_data dat;
 		read_card(code, &dat);
-		if (dat.alias)
+		if (dat.alias && !second_code(code))
 			code = dat.alias;
 	}
 	return code;
 }
-// get the current second-code
+// return: the current second card name
+// for double-name cards, it returns the name in description
 uint32 card::get_another_code() {
-	if(is_affected_by_effect(EFFECT_CHANGE_CODE))
-		return 0;
+	uint32 code = get_code();
+	if(code != data.code){
+		return second_code(code);
+	}
 	effect_set eset;
 	filter_effect(EFFECT_ADD_CODE, &eset);
 	if(!eset.size())
 		return 0;
 	uint32 otcode = eset.get_last()->get_value(this);
-	if(get_code() != otcode)
+	if(code != otcode)
 		return otcode;
 	return 0;
 }
@@ -490,7 +505,7 @@ int32 card::get_base_attack() {
 	if(swap)
 		filter_effect(EFFECT_SET_BASE_DEFENSE, &eset, FALSE);
 	eset.sort();
-	// calculate continous effects of this first
+	// calculate continuous effects of this first
 	for(int32 i = 0; i < eset.size();) {
 		if((eset[i]->type & EFFECT_TYPE_SINGLE) && eset[i]->is_flag(EFFECT_FLAG_SINGLE_RANGE)) {
 			switch(eset[i]->code) {
@@ -877,31 +892,22 @@ uint32 card::get_level() {
 	effect_set effects;
 	int32 level = data.level;
 	temp.level = level;
-	int32 up = 0, upc = 0;
+	int32 up = 0;
 	filter_effect(EFFECT_UPDATE_LEVEL, &effects, FALSE);
-	filter_effect(EFFECT_CHANGE_LEVEL, &effects, FALSE);
-	filter_effect(EFFECT_CHANGE_LEVEL_FINAL, &effects);
+	filter_effect(EFFECT_CHANGE_LEVEL, &effects);
 	for (int32 i = 0; i < effects.size(); ++i) {
 		switch (effects[i]->code) {
 		case EFFECT_UPDATE_LEVEL:
-			if ((effects[i]->type & EFFECT_TYPE_SINGLE) && !effects[i]->is_flag(EFFECT_FLAG_SINGLE_RANGE))
-				up += effects[i]->get_value(this);
-			else
-				upc += effects[i]->get_value(this);
+			up += effects[i]->get_value(this);
 			break;
 		case EFFECT_CHANGE_LEVEL:
 			level = effects[i]->get_value(this);
 			up = 0;
 			break;
-		case EFFECT_CHANGE_LEVEL_FINAL:
-			level = effects[i]->get_value(this);
-			up = 0;
-			upc = 0;
-			break;
 		}
-		temp.level = level + up + upc;
+		temp.level = level + up;
 	}
-	level += up + upc;
+	level += up;
 	if(level < 1 && (get_type() & TYPE_MONSTER))
 		level = 1;
 	temp.level = 0xffffffff;
@@ -919,31 +925,22 @@ uint32 card::get_rank() {
 	effect_set effects;
 	int32 rank = data.level;
 	temp.level = rank;
-	int32 up = 0, upc = 0;
+	int32 up = 0;
 	filter_effect(EFFECT_UPDATE_RANK, &effects, FALSE);
-	filter_effect(EFFECT_CHANGE_RANK, &effects, FALSE);
-	filter_effect(EFFECT_CHANGE_RANK_FINAL, &effects);
+	filter_effect(EFFECT_CHANGE_RANK, &effects);
 	for (int32 i = 0; i < effects.size(); ++i) {
 		switch (effects[i]->code) {
 		case EFFECT_UPDATE_RANK:
-			if ((effects[i]->type & EFFECT_TYPE_SINGLE) && !effects[i]->is_flag(EFFECT_FLAG_SINGLE_RANGE))
-				up += effects[i]->get_value(this);
-			else
-				upc += effects[i]->get_value(this);
+			up += effects[i]->get_value(this);
 			break;
 		case EFFECT_CHANGE_RANK:
 			rank = effects[i]->get_value(this);
 			up = 0;
 			break;
-		case EFFECT_CHANGE_RANK_FINAL:
-			rank = effects[i]->get_value(this);
-			up = 0;
-			upc = 0;
-			break;
 		}
-		temp.level = rank + up + upc;
+		temp.level = rank + up;
 	}
-	rank += up + upc;
+	rank += up;
 	if(rank < 1 && (get_type() & TYPE_MONSTER))
 		rank = 1;
 	temp.level = 0xffffffff;
@@ -1895,11 +1892,13 @@ int32 card::replace_effect(uint32 code, uint32 reset, uint32 count) {
 	read_card(code, &cdata);
 	if(cdata.type & TYPE_NORMAL)
 		return -1;
+	if(is_status(STATUS_EFFECT_REPLACED))
+		set_status(STATUS_EFFECT_REPLACED, FALSE);
 	for(auto i = indexer.begin(); i != indexer.end();) {
 		auto rm = i++;
 		effect* peffect = rm->first;
 		auto it = rm->second;
-		if(peffect->is_flag(EFFECT_FLAG_INITIAL | EFFECT_FLAG_COPY_INHERIT))
+		if (peffect->is_flag(EFFECT_FLAG_INITIAL | EFFECT_FLAG_COPY_INHERIT))
 			remove_effect(peffect, it);
 	}
 	uint32 cr = pduel->game_field->core.copy_reset;
@@ -2728,6 +2727,7 @@ effect* card::is_affected_by_effect(int32 code, card* target) {
 	}
 	return 0;
 }
+// return the last control-changing continuous effect
 effect* card::check_control_effect() {
 	effect* ret_effect = 0;
 	for (auto& pcard : equiping_cards) {
@@ -2751,7 +2751,7 @@ effect* card::check_control_effect() {
 	auto rg = single_effect.equal_range(EFFECT_SET_CONTROL);
 	for (; rg.first != rg.second; ++rg.first) {
 		effect* peffect = rg.first->second;
-		if(!peffect->is_flag(EFFECT_FLAG_SINGLE_RANGE))
+		if(!peffect->is_flag(EFFECT_FLAG_OWNER_RELATE))
 			continue;
 		if(!ret_effect || peffect->id > ret_effect->id)
 			ret_effect = peffect;
