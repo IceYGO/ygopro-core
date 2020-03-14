@@ -44,7 +44,7 @@ struct optarget {
 	int32 op_param;
 };
 struct chain {
-	typedef std::unordered_map<uint32, optarget> opmap;
+	using opmap = std::unordered_map<uint32, optarget>;
 	uint16 chain_id;
 	uint8 chain_count;
 	uint8 triggering_player;
@@ -68,7 +68,7 @@ struct chain {
 };
 
 struct player_info {
-	typedef std::vector<card*> card_vector;
+	using card_vector = std::vector<card*>;
 	int32 lp;
 	int32 start_count;
 	int32 draw_count;
@@ -88,12 +88,12 @@ struct player_info {
 	card_vector tag_list_extra;
 };
 struct field_effect {
-	typedef std::multimap<uint32, effect*> effect_container;
-	typedef std::unordered_map<effect*, effect_container::iterator> effect_indexer;
-	typedef std::unordered_map<effect*, effect*> oath_effects;
-	typedef std::unordered_set<effect*> effect_collection;
-	typedef std::unordered_map<card*, effect*> gain_effects;
-	typedef std::unordered_map<effect*, gain_effects> grant_effect_container;
+	using effect_container = std::multimap<uint32, effect*>;
+	using effect_indexer = std::unordered_map<effect*, effect_container::iterator>;
+	using oath_effects = std::unordered_map<effect*, effect*>;
+	using effect_collection = std::unordered_set<effect*>;
+	using gain_effects = std::unordered_map<card*, effect*>;
+	using grant_effect_container = std::unordered_map<effect*, gain_effects>;
 
 	effect_container aura_effect;
 	effect_container ignition_effect;
@@ -150,23 +150,23 @@ union return_value {
 	int64 lvalue[8];
 };
 struct processor {
-	typedef std::vector<effect*> effect_vector;
-	typedef std::vector<card*> card_vector;
-	typedef std::vector<uint32> option_vector;
-	typedef std::list<card*> card_list;
-	typedef std::list<tevent> event_list;
-	typedef std::list<chain> chain_list;
-	typedef std::map<effect*, chain> instant_f_list;
-	typedef std::vector<chain> chain_array;
-	typedef std::list<processor_unit> processor_list;
-	typedef std::set<card*, card_sort> card_set;
-	typedef std::set<std::pair<effect*, tevent>> delayed_effect_collection;
+	using effect_vector = std::vector<effect*>;
+	using card_vector = std::vector<card*>;
+	using option_vector = std::vector<uint32>;
+	using card_list = std::list<card*>;
+	using event_list = std::list<tevent>;
+	using chain_list = std::list<chain>;
+	using instant_f_list = std::map<effect*, chain>;
+	using chain_array = std::vector<chain>;
+	using processor_list = std::list<processor_unit>;
+	using card_set = std::set<card*, card_sort>;
+	using delayed_effect_collection = std::set<std::pair<effect*, tevent>>;
 	struct chain_limit_t {
 		chain_limit_t(int32 f, int32 p): function(f), player(p) {}
 		int32 function;
 		int32 player;
 	};
-	typedef std::vector<chain_limit_t> chain_limit_list;
+	using chain_limit_list = std::vector<chain_limit_t>;
 
 	processor_list units;
 	processor_list subunits;
@@ -185,6 +185,7 @@ struct processor {
 	event_list point_event;
 	event_list instant_event;
 	event_list queue_event;
+	event_list delayed_activate_event;
 	event_list full_event;
 	event_list used_event;
 	event_list single_event;
@@ -208,7 +209,6 @@ struct processor {
 	chain_list new_ochain_h;
 	chain_list new_chains;
 	delayed_effect_collection delayed_quick_tmp;
-	delayed_effect_collection delayed_quick_break;
 	delayed_effect_collection delayed_quick;
 	instant_f_list quick_f_chain;
 	card_set leave_confirmed;
@@ -334,16 +334,16 @@ struct processor {
 };
 class field {
 public:
-	typedef std::multimap<uint32, effect*> effect_container;
-	typedef std::set<card*, card_sort> card_set;
-	typedef std::vector<effect*> effect_vector;
-	typedef std::vector<card*> card_vector;
-	typedef std::list<card*> card_list;
-	typedef std::list<tevent> event_list;
-	typedef std::list<chain> chain_list;
-	typedef std::map<effect*, chain> instant_f_list;
-	typedef std::vector<chain> chain_array;
-	typedef std::list<processor_unit> processor_list;
+	using effect_container = std::multimap<uint32, effect*>;
+	using card_set = std::set<card*, card_sort>;
+	using effect_vector = std::vector<effect*>;
+	using card_vector = std::vector<card*>;
+	using card_list = std::list<card*>;
+	using event_list = std::list<tevent>;
+	using chain_list = std::list<chain>;
+	using instant_f_list = std::map<effect*, chain>;
+	using chain_array = std::vector<chain>;
+	using processor_list = std::list<processor_unit>;
 
 	duel* pduel;
 	player_info player[2];
@@ -363,6 +363,7 @@ public:
 	void add_card(uint8 playerid, card* pcard, uint8 location, uint8 sequence, uint8 pzone = FALSE);
 	void remove_card(card* pcard);
 	void move_card(uint8 playerid, card* pcard, uint8 location, uint8 sequence, uint8 pzone = FALSE);
+	void swap_card(card* pcard1, card* pcard2, uint8 new_sequence1, uint8 new_sequence2);
 	void swap_card(card* pcard1, card* pcard2);
 	void set_control(card* pcard, uint8 playerid, uint16 reset_phase, uint8 reset_count);
 	card* get_field_card(uint32 playerid, uint32 location, uint32 sequence);
@@ -378,6 +379,8 @@ public:
 	int32 get_mzone_limit(uint8 playerid, uint8 uplayer, uint32 reason);
 	int32 get_szone_limit(uint8 playerid, uint8 uplayer, uint32 reason);
 	uint32 get_linked_zone(int32 playerid);
+	uint32 get_rule_zone_fromex(int32 playerid, card* pcard);
+	void filter_must_use_mzone(uint8 playerid, uint8 uplayer, uint32 reason, card* pcard, uint32* flag);
 	void get_linked_cards(uint8 self, uint8 s, uint8 o, card_set* cset);
 	int32 check_extra_link(int32 playerid);
 	int32 check_extra_link(int32 playerid, card* pcard, int32 sequence);
@@ -472,7 +475,7 @@ public:
 	int32 is_player_can_send_to_grave(uint8 playerid, card* pcard);
 	int32 is_player_can_send_to_hand(uint8 playerid, card* pcard);
 	int32 is_player_can_send_to_deck(uint8 playerid, card* pcard);
-	int32 is_player_can_remove(uint8 playerid, card* pcard);
+	int32 is_player_can_remove(uint8 playerid, card* pcard, uint32 reason);
 	int32 is_chain_negatable(uint8 chaincount);
 	int32 is_chain_disablable(uint8 chaincount);
 	int32 is_chain_disabled(uint8 chaincount);
@@ -606,7 +609,7 @@ public:
 	int32 select_tribute(uint16 step, uint8 playerid, uint8 cancelable, uint8 min, uint8 max);
 	int32 select_counter(uint16 step, uint8 playerid, uint16 countertype, uint16 count, uint8 s, uint8 o);
 	int32 select_with_sum_limit(int16 step, uint8 playerid, int32 acc, int32 min, int32 max);
-	int32 sort_card(int16 step, uint8 playerid, uint8 is_chain);
+	int32 sort_card(int16 step, uint8 playerid);
 	int32 announce_race(int16 step, uint8 playerid, int32 count, int32 available);
 	int32 announce_attribute(int16 step, uint8 playerid, int32 count, int32 available);
 	int32 announce_card(int16 step, uint8 playerid);
@@ -676,6 +679,7 @@ public:
 #define TIMING_BATTLE_PHASE			0x1000000
 #define TIMING_EQUIP				0x2000000
 #define TIMING_BATTLE_STEP_END		0x4000000
+#define TIMING_BATTLED				0x8000000
 
 #define GLOBALFLAG_DECK_REVERSE_CHECK	0x1
 #define GLOBALFLAG_BRAINWASHING_CHECK	0x2

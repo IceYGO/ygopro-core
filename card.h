@@ -14,6 +14,7 @@
 #include <map>
 #include <unordered_set>
 #include <unordered_map>
+#include <tuple>
 
 class card;
 class duel;
@@ -93,14 +94,14 @@ public:
 			return std::hash<uint16>()(v.second);
 		}
 	};
-	typedef std::vector<card*> card_vector;
-	typedef std::multimap<uint32, effect*> effect_container;
-	typedef std::set<card*, card_sort> card_set;
-	typedef std::unordered_map<effect*, effect_container::iterator> effect_indexer;
-	typedef std::unordered_set<std::pair<effect*, uint16>, effect_relation_hash> effect_relation;
-	typedef std::unordered_map<card*, uint32> relation_map;
-	typedef std::map<uint16, std::array<uint16, 2>> counter_map;
-	typedef std::map<uint32, int32> effect_count;
+	using card_vector = std::vector<card*>;
+	using effect_container = std::multimap<uint32, effect*>;
+	using card_set = std::set<card*, card_sort>;
+	using effect_indexer = std::unordered_map<effect*, effect_container::iterator>;
+	using effect_relation = std::unordered_set<std::pair<effect*, uint16>, effect_relation_hash>;
+	using relation_map = std::unordered_map<card*, uint32>;
+	using counter_map = std::map<uint16, std::array<uint16, 2>>;
+	using effect_count = std::map<uint32, int32>;
 	class attacker_map : public std::unordered_map<uint16, std::pair<card*, uint32>> {
 	public:
 		void addcard(card* pcard);
@@ -180,6 +181,7 @@ public:
 	effect_container single_effect;
 	effect_container field_effect;
 	effect_container equip_effect;
+	effect_container target_effect;
 	effect_container xmaterial_effect;
 	effect_indexer indexer;
 	effect_relation relate_effect;
@@ -256,7 +258,7 @@ public:
 	void reset(uint32 id, uint32 reset_type);
 	void reset_effect_count();
 	void refresh_disable_status();
-	uint8 refresh_control_status();
+	std::tuple<uint8, effect*> refresh_control_status();
 
 	void count_turn(uint16 ct);
 	void create_relation(card* target, uint32 reset);
@@ -293,7 +295,6 @@ public:
 	void filter_spsummon_procedure_g(uint8 playerid, effect_set* eset);
 	effect* is_affected_by_effect(int32 code);
 	effect* is_affected_by_effect(int32 code, card* target);
-	effect* check_control_effect();
 	int32 fusion_check(group* fusion_m, card* cg, uint32 chkf, uint8 not_material);
 	void fusion_select(uint8 playerid, group* fusion_m, card* cg, uint32 chkf, uint8 not_material);
 	int32 check_fusion_substitute(card* fcard);
@@ -320,8 +321,8 @@ public:
 	int32 is_destructable_by_battle(card* pcard);
 	effect* check_indestructable_by_effect(effect* peffect, uint8 playerid);
 	int32 is_destructable_by_effect(effect* peffect, uint8 playerid);
-	int32 is_removeable(uint8 playerid);
-	int32 is_removeable_as_cost(uint8 playerid);
+	int32 is_removeable(uint8 playerid, uint8 pos, uint32 reason);
+	int32 is_removeable_as_cost(uint8 playerid, uint8 pos);
 	int32 is_releasable_by_summon(uint8 playerid, card* pcard);
 	int32 is_releasable_by_nonsummon(uint8 playerid);
 	int32 is_releasable_by_effect(uint8 playerid, effect* peffect);
@@ -342,6 +343,7 @@ public:
 	int32 is_control_can_be_changed(int32 ignore_mzone, uint32 zone);
 	int32 is_capable_be_battle_target(card* pcard);
 	int32 is_capable_be_effect_target(effect* peffect, uint8 playerid);
+	int32 is_capable_overlay(uint8 playerid);
 	int32 is_can_be_fusion_material(card* fcard, uint32 summon_type);
 	int32 is_can_be_synchro_material(card* scard, card* tuner = 0);
 	int32 is_can_be_ritual_material(card* scard);
